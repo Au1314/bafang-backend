@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.admin.mapper.UserManageMapper">
+
+    <!-- 查询用户列表 -->
+    <select id="selectUserList" parameterType="com.baffang.admin.dto.UserQueryDTO"
+            resultType="com.baffang.admin.vo.UserListVO">
+        SELECT
+            u.id,
+            u.username,
+            u.name,
+            u.phone,
+            u.email,
+            u.avatar,
+            u.type,
+            u.auth_charging_station AS authChargingStation,
+            u.auth_vehicle AS authVehicle,
+            u.points,
+            u.balance,
+            u.is_deleted AS isDeleted,
+            u.create_time AS createTime,
+            u.last_login_time AS lastLoginTime
+        FROM user_info u
+        WHERE 1 = 1
+        <if test="keyword != null and keyword != ''">
+            AND (u.username LIKE CONCAT('%', #{keyword}, '%')
+                 OR u.name LIKE CONCAT('%', #{keyword}, '%')
+                 OR u.phone LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="type != null">
+            AND u.type = #{type}
+        </if>
+        <if test="authChargingStation != null">
+            AND u.auth_charging_station = #{authChargingStation}
+        </if>
+        <if test="authVehicle != null">
+            AND u.auth_vehicle = #{authVehicle}
+        </if>
+        <if test="startTime != null and startTime != ''">
+            AND u.create_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null and endTime != ''">
+            AND u.create_time &lt;= #{endTime}
+        </if>
+        ORDER BY u.create_time DESC
+    </select>
+
+    <!-- 查询用户详情 -->
+    <select id="selectUserDetail" resultType="java.util.Map">
+        SELECT
+            u.id,
+            u.username,
+            u.name,
+            u.phone,
+            u.email,
+            u.avatar,
+            u.signature,
+            u.type,
+            u.auth_charging_station AS authChargingStation,
+            u.auth_vehicle AS authVehicle,
+            u.privacy_vehicle AS privacyVehicle,
+            u.privacy_station AS privacyStation,
+            u.points,
+            u.balance,
+            u.is_deleted AS isDeleted,
+            u.create_time AS createTime,
+            u.update_time AS updateTime,
+            u.last_login_time AS lastLoginTime
+        FROM user_info u
+        WHERE u.id = #{id}
+    </select>
+
+    <!-- 判断用户是否存在 -->
+    <select id="existsById" resultType="boolean">
+        SELECT COUNT(*) > 0
+        FROM user_info
+        WHERE id = #{id}
+        <!--   AND is_deleted = 0-->
+    </select>
+
+    <!-- 根据手机号查询用户ID -->
+    <select id="selectIdByPhone" resultType="java.lang.Integer">
+        SELECT id
+        FROM user_info
+        WHERE phone = #{phone}
+          AND is_deleted = 0
+        LIMIT 1
+    </select>
+
+    <!-- 更新用户信息 -->
+    <update id="updateUser">
+        UPDATE user_info
+        <set>
+            <if test="dto.name != null">
+                name = #{dto.name},
+            </if>
+            <if test="dto.phone != null">
+                phone = #{dto.phone},
+            </if>
+            <if test="dto.email != null">
+                email = #{dto.email},
+            </if>
+            <if test="dto.type != null">
+                type = #{dto.type},
+            </if>
+            <if test="dto.signature != null">
+                signature = #{dto.signature},
+            </if>
+            <if test="dto.points != null">
+                points = #{dto.points},
+            </if>
+            <if test="dto.balance != null">
+                balance = #{dto.balance},
+            </if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 更新用户状态（禁用/启用） -->
+    <update id="updateUserDeleted">
+        UPDATE user_info
+        SET is_deleted = #{isDeleted},
+            update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <!-- 更新密码 -->
+    <update id="updatePassword">
+        UPDATE user_info
+        SET password = #{password},
+            update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <!-- 批量更新状态 -->
+    <update id="batchUpdateDeleted">
+        UPDATE user_info
+        SET is_deleted = #{isDeleted},
+            update_time = NOW()
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <!-- 统计数据 -->
+    <select id="selectStatistics" resultType="com.baffang.admin.vo.UserStatisticsVO">
+        SELECT
+            COUNT(*) AS total,
+            SUM(CASE WHEN is_deleted = 0 THEN 1 ELSE 0 END) AS normalCount,
+            SUM(CASE WHEN is_deleted = 1 THEN 1 ELSE 0 END) AS disabledCount,
+            SUM(CASE WHEN DATE(create_time) = CURDATE() AND is_deleted = 0 THEN 1 ELSE 0 END) AS todayNew,
+            SUM(CASE WHEN create_time >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) AND is_deleted = 0 THEN 1 ELSE 0 END) AS weekNew,
+            SUM(CASE WHEN create_time >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND is_deleted = 0 THEN 1 ELSE 0 END) AS monthNew,
+            SUM(CASE WHEN type = 1 AND is_deleted = 0 THEN 1 ELSE 0 END) AS vipCount,
+            SUM(CASE WHEN auth_charging_station = 2 AND is_deleted = 0 THEN 1 ELSE 0 END) AS authStationCount,
+            SUM(CASE WHEN auth_vehicle = 2 AND is_deleted = 0 THEN 1 ELSE 0 END) AS authVehicleCount
+        FROM user_info
+    </select>
+
+    <!-- 统计用户私桩数量 -->
+    <select id="countUserStations" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM private_charge_station
+        WHERE owner_id = #{userId}
+          AND is_deleted = 0
+    </select>
+
+    <!-- 统计用户车辆数量 -->
+    <select id="countUserVehicles" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM car_auth
+        WHERE owner_id = #{userId}
+          AND is_deleted = 0
+    </select>
+
+    <!-- 统计用户订单数量 -->
+    <select id="countUserOrders" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM `order`
+        WHERE user_id = #{userId}
+    </select>
+
+
+    <!-- ========== 新增：真删除 ========== -->
+<!-- 删除用户（真删除） -->
+<delete id="deleteById">
+    DELETE FROM user_info WHERE id = #{id}
+</delete>
+
+<!-- 批量删除用户（真删除） -->
+<delete id="batchDelete">
+    DELETE FROM user_info WHERE id IN
+    <foreach collection="ids" item="id" open="(" separator="," close=")">
+        #{id}
+    </foreach>
+</delete>
+
+</mapper>

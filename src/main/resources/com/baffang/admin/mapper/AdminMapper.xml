@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.admin.mapper.AdminMapper">
+
+    <resultMap id="BaseResultMap" type="com.baffang.common.entity.AdminInfo">
+        <id column="id" property="id"/>
+        <result column="username" property="username"/>
+        <result column="name" property="name"/>
+        <result column="password" property="password"/>
+        <result column="avatar" property="avatar"/>
+        <result column="type" property="type"/>
+        <result column="is_deleted" property="isDeleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="last_login_time" property="lastLoginTime"/>
+    </resultMap>
+
+    <select id="selectByUsername" resultMap="BaseResultMap">
+        SELECT * FROM admin_info 
+        WHERE username = #{username} AND is_deleted = 0
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM admin_info 
+        WHERE id = #{id} AND is_deleted = 0
+    </select>
+
+    <insert id="insert" parameterType="com.baffang.common.entity.AdminInfo" 
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO admin_info (username, name, password, avatar, type, is_deleted, create_time, update_time)
+        VALUES (#{username}, #{name}, #{password}, #{avatar}, #{type}, 0, NOW(), NOW())
+    </insert>
+    
+    <update id="updateLastLoginTime">
+        UPDATE admin_info 
+        SET last_login_time = NOW(), update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateById" parameterType="com.baffang.common.entity.AdminInfo">
+        UPDATE admin_info
+        SET type = #{type},
+            update_time = #{updateTime}
+        WHERE id = #{id} AND is_deleted = 0
+    </update>
+
+    <select id="selectList" resultType="com.baffang.common.entity.AdminInfo">
+        SELECT * FROM admin_info 
+        WHERE is_deleted = 0
+        ORDER BY type ASC, create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*) FROM admin_info WHERE is_deleted = 0
+    </select>
+
+
+    <!-- 在 </mapper> 结束标签之前添加 -->
+
+<select id="selectCustomerServiceAdmins" resultMap="BaseResultMap">
+    SELECT * FROM admin_info 
+    WHERE type = 3 AND is_deleted = 0
+    ORDER BY create_time DESC
+</select>
+
+
+</mapper>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.user.mapper.UserChargeRateMapper">
+    
+    <!-- 插入评论 -->
+    <insert id="insertChargeRate" parameterType="com.baffang.common.entity.ChargeRate">
+        INSERT INTO charge_rate (user_id, type, charging_station_id, anonymous, score, comment, create_time, update_time, is_deleted)
+        VALUES (#{userId}, #{type}, #{chargingStationId}, #{anonymous}, #{score}, #{comment}, #{createTime}, #{updateTime}, #{isDeleted})
+    </insert>
+    
+    <!-- 计算充电桩的平均评分 -->
+    <select id="calculateAverageRating" resultType="java.lang.Double">
+        SELECT ROUND(AVG(score), 1) AS average_rating
+        FROM charge_rate
+        WHERE charging_station_id = #{stationId}
+        AND type = #{stationType}
+        AND is_deleted = 0
+    </select>
+    
+    <!-- 根据充电桩ID和类型查询评论列表 -->
+    <select id="selectChargeRateListByStationIdAndType" resultType="com.baffang.user.vo.ChargeRateVO">
+        SELECT 
+            cr.id AS rateId,
+            cr.user_id AS userId,
+            ui.name AS username,
+            cr.score,
+            cr.comment,
+            cr.anonymous,
+            DATE_FORMAT(cr.create_time, '%Y-%m-%d %H:%i:%s') AS createTime,
+            ui.avatar
+        FROM charge_rate cr
+        LEFT JOIN user_info ui ON cr.user_id = ui.id
+        WHERE cr.charging_station_id = #{stationId}
+        AND cr.type = #{stationType}
+        AND cr.is_deleted = 0
+        ORDER BY cr.create_time DESC
+    </select>
+    
+    <!-- 根据评论ID查询评论信息 -->
+    <select id="selectChargeRateById" resultType="com.baffang.common.entity.ChargeRate">
+        SELECT * FROM charge_rate WHERE id = #{rateId} AND is_deleted = 0
+    </select>
+    
+    <!-- 删除评论（软删除，将is_deleted设为1） -->
+    <update id="deleteChargeRate">
+        UPDATE charge_rate SET is_deleted = 1, update_time = NOW() 
+        WHERE id = #{rateId} AND user_id = #{userId} AND is_deleted = 0
+    </update>
+</mapper>

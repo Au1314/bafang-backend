@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.admin.mapper.AdminInviteCodeMapper">
+
+    <resultMap id="BaseResultMap" type="com.baffang.common.entity.AdminInviteCode">
+        <id column="id" property="id"/>
+        <result column="code" property="code"/>
+        <result column="created_by" property="createdBy"/>
+        <result column="target_type" property="targetType"/>
+        <result column="max_uses" property="maxUses"/>
+        <result column="used_count" property="usedCount"/>
+        <result column="expire_time" property="expireTime"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectByCode" resultMap="BaseResultMap">
+        SELECT * FROM admin_invite_code 
+        WHERE code = #{code} AND status = 0
+    </select>
+    
+    <select id="selectByCreatedBy" resultMap="BaseResultMap">
+        SELECT * FROM admin_invite_code 
+        WHERE created_by = #{createdBy} 
+        ORDER BY create_time DESC
+    </select>
+
+    <insert id="insert" parameterType="com.baffang.common.entity.AdminInviteCode" 
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO admin_invite_code (code, created_by, target_type, max_uses, used_count, expire_time, status, create_time)
+        VALUES (#{code}, #{createdBy}, #{targetType}, #{maxUses}, 0, #{expireTime}, 0, NOW())
+    </insert>
+
+    <update id="incrementUsedCount">
+        UPDATE admin_invite_code 
+        SET used_count = used_count + 1, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+    SELECT * FROM admin_invite_code WHERE id = #{id}
+</select>
+
+<delete id="deleteById">
+    DELETE FROM admin_invite_code WHERE id = #{id}
+</delete>
+<update id="updateStatus">
+    UPDATE admin_invite_code 
+    SET status = #{status}, update_time = NOW() 
+    WHERE id = #{id}
+</update>
+
+</mapper>

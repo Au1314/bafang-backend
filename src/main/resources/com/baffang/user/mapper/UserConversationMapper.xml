@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.user.mapper.UserConversationMapper">
+    
+    <!-- 插入对话记录 -->
+    <insert id="insertConversation" parameterType="com.baffang.common.entity.Conversation" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO conversation (
+            type,
+            status,
+            create_time,
+            update_time,
+            remark,
+            is_deleted
+        ) VALUES (
+            #{type},
+            #{status},
+            NOW(),
+            NOW(),
+            #{remark},
+            0
+        )
+    </insert>
+
+    <!-- 查询用户的对话列表 -->
+    <select id="selectConversationListByUserId" parameterType="java.lang.Integer" resultType="com.baffang.user.vo.ConversationListVO">
+        SELECT
+            c.id AS conversationId,
+            c.type,
+            c.status,
+            MAX(cm.send_time) AS lastMessageTime,
+            (SELECT cm2.content 
+             FROM conversation_message cm2 
+             WHERE cm2.conversation_id = c.id 
+             ORDER BY cm2.send_time DESC 
+             LIMIT 1) AS lastMessage,
+            (SELECT CASE 
+                      WHEN cm3.sender_type = 0 THEN -- 普通用户
+                        (SELECT CASE 
+                                  WHEN u2.name IS NOT NULL AND u2.name != '' THEN u2.name 
+                                  ELSE u2.phone 
+                                END 
+                         FROM user_info u2 
+                         WHERE u2.id = cm3.sender_id) 
+                      WHEN cm3.sender_type = 1 THEN -- 管理员
+                        (SELECT CASE 
+                                  WHEN a.name IS NOT NULL AND a.name != '' THEN a.name 
+                                  ELSE a.username 
+                                END 
+                         FROM admin_info a 
+                         WHERE a.id = cm3.sender_id) 
+                      ELSE '系统' -- 系统用户
+                    END 
+             FROM conversation_message cm3 
+             WHERE cm3.conversation_id = c.id 
+             ORDER BY cm3.send_time DESC 
+             LIMIT 1) AS lastMessageSender,
+            CASE 
+              WHEN cp2.participant_id != #{userId} THEN 
+                CASE cp2.participant_type 
+                  WHEN 0 THEN -- 普通用户
+                    (SELECT CASE 
+                              WHEN u3.name IS NOT NULL AND u3.name != '' THEN u3.name 
+                              ELSE u3.phone 
+                            END 
+                     FROM user_info u3 
+                     WHERE u3.id = cp2.participant_id) 
+                  WHEN 1 THEN -- 管理员
+                    (SELECT CASE 
+                              WHEN a.name IS NOT NULL AND a.name != '' THEN a.name 
+                              ELSE a.username 
+                            END 
+                     FROM admin_info a 
+                     WHERE a.id = cp2.participant_id) 
+                  WHEN 2 THEN -- 系统
+                    CASE c.type 
+                      WHEN 0 THEN '客服' 
+                      ELSE '系统' 
+                    END 
+                  ELSE '未知' 
+                END 
+              ELSE '未知' 
+            END AS targetName
+        FROM
+            conversation c
+        INNER JOIN
+            conversation_participant cp1 ON c.id = cp1.conversation_id AND cp1.participant_id = #{userId}
+        INNER JOIN
+            conversation_participant cp2 ON c.id = cp2.conversation_id
+        LEFT JOIN
+            conversation_message cm ON c.id = cm.conversation_id
+        WHERE
+            c.is_deleted = 0
+            AND cp1.is_deleted = 0
+            AND cp2.is_deleted = 0
+            AND (cp1.id != cp2.id OR cp1.id = cp2.id)
+        GROUP BY
+            c.id, c.type, c.status, cp2.participant_id, cp2.participant_type
+        ORDER BY
+            lastMessageTime DESC
+    </select>
+    
+    <!-- 更新对话状态 -->
+    <update id="updateConversationStatus" parameterType="java.util.Map">
+        UPDATE conversation
+        SET 
+            status = #{status},
+            end_time = NOW(),
+            update_time = NOW()
+        WHERE
+            id = #{id}
+            AND is_deleted = 0
+    </update>
+</mapper>

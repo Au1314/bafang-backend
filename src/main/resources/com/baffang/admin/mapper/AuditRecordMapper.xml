@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.admin.mapper.AuditRecordMapper">
+
+    <resultMap id="BaseResultMap" type="com.baffang.common.entity.AuditRecord">
+        <id column="id" property="id"/>
+        <result column="audit_no" property="auditNo"/>
+        <result column="audit_type" property="auditType"/>
+        <result column="business_id" property="businessId"/>
+        <result column="applicant_id" property="applicantId"/>
+        <result column="title" property="title"/>
+        <result column="content" property="content"/>
+        <result column="attachments" property="attachments"/>
+        <result column="current_status" property="currentStatus"/>
+        <result column="current_admin_id" property="currentAdminId"/>
+        <result column="priority" property="priority"/>
+        <result column="submit_time" property="submitTime"/>
+        <result column="finish_time" property="finishTime"/>
+        <result column="final_opinion" property="finalOpinion"/>
+        <result column="reject_reason" property="rejectReason"/>
+        <result column="is_deleted" property="isDeleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO audit_record (
+            audit_no, audit_type, business_id, applicant_id, title, content,
+            attachments, current_status, current_admin_id, priority,
+            submit_time, is_deleted, create_time, update_time
+        ) VALUES (
+            #{auditNo}, #{auditType}, #{businessId}, #{applicantId}, #{title}, #{content},
+            #{attachments}, #{currentStatus}, #{currentAdminId}, #{priority},
+            #{submitTime}, 0, NOW(), NOW()
+        )
+    </insert>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM audit_record WHERE id = #{id} AND is_deleted = 0
+    </select>
+
+    <select id="selectByAuditNo" resultMap="BaseResultMap">
+        SELECT * FROM audit_record WHERE audit_no = #{auditNo} AND is_deleted = 0
+    </select>
+
+    <select id="selectByBusinessIdAndType" resultMap="BaseResultMap">
+        SELECT * FROM audit_record 
+        WHERE business_id = #{businessId} 
+        AND audit_type = #{auditType} 
+        AND is_deleted = 0
+        ORDER BY create_time DESC
+        LIMIT 1
+    </select>
+
+    <update id="updateById">
+        UPDATE audit_record
+        <set>
+            <if test="currentStatus != null">current_status = #{currentStatus},</if>
+            <if test="currentAdminId != null">current_admin_id = #{currentAdminId},</if>
+            <if test="finalOpinion != null">final_opinion = #{finalOpinion},</if>
+            <if test="rejectReason != null">reject_reason = #{rejectReason},</if>
+            <if test="finishTime != null">finish_time = #{finishTime},</if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{id} AND is_deleted = 0
+    </update>
+
+    <update id="updateStatus">
+        UPDATE audit_record
+        SET current_status = #{currentStatus},
+            current_admin_id = #{currentAdminId},
+            update_time = NOW()
+        WHERE id = #{id} AND is_deleted = 0
+    </update>
+
+    <update id="finishAudit">
+        UPDATE audit_record
+        SET current_status = #{currentStatus},
+            final_opinion = #{finalOpinion},
+            reject_reason = #{rejectReason},
+            finish_time = NOW(),
+            update_time = NOW()
+        WHERE id = #{id} AND is_deleted = 0
+    </update>
+
+    <select id="selectList" resultMap="BaseResultMap">
+        SELECT * FROM audit_record
+        WHERE is_deleted = 0
+        <if test="auditType != null">
+            AND audit_type = #{auditType}
+        </if>
+        <if test="currentStatus != null">
+            AND current_status = #{currentStatus}
+        </if>
+        <if test="currentAdminId != null">
+            AND current_admin_id = #{currentAdminId}
+        </if>
+        ORDER BY 
+            CASE priority WHEN 3 THEN 0 WHEN 2 THEN 1 WHEN 1 THEN 2 ELSE 3 END,
+            create_time DESC
+    </select>
+
+    <select id="selectByApplicantId" resultMap="BaseResultMap">
+        SELECT * FROM audit_record
+        WHERE applicant_id = #{applicantId} AND is_deleted = 0
+        <if test="auditType != null">
+            AND audit_type = #{auditType}
+        </if>
+        ORDER BY create_time DESC
+    </select>
+
+
+
+        <!-- ========== 新增：审核记录查看功能 ========== -->
+
+    <!-- 分页查询审核记录列表（带申请人信息） -->
+    <select id="selectListWithApplicant" resultType="java.util.Map">
+        SELECT 
+            ar.id,
+            ar.audit_no AS auditNo,
+            ar.audit_type AS auditType,
+            ar.business_id AS businessId,
+            ar.title,
+            ar.content,
+            ar.current_status AS currentStatus,
+            ar.priority,
+            ar.applicant_id AS applicantId,
+            ar.submit_time AS submitTime,
+            ar.finish_time AS finishTime,
+            ar.current_admin_id AS currentAdminId,
+            u.name AS applicantName,
+            u.avatar AS applicantAvatar,
+            a.name AS currentAdminName
+        FROM audit_record ar
+        LEFT JOIN user_info u ON ar.applicant_id = u.id
+        LEFT JOIN admin_info a ON ar.current_admin_id = a.id
+        WHERE ar.is_deleted = 0
+        <if test="query.auditType != null">
+            AND ar.audit_type = #{query.auditType}
+        </if>
+        <if test="query.status != null">
+            AND ar.current_status = #{query.status}
+        </if>
+        <if test="query.priority != null">
+            AND ar.priority = #{query.priority}
+        </if>
+        <if test="query.keyword != null and query.keyword != ''">
+            AND (
+                ar.audit_no LIKE CONCAT('%', #{query.keyword}, '%')
+                OR ar.title LIKE CONCAT('%', #{query.keyword}, '%')
+            )
+        </if>
+        <if test="query.startTime != null and query.startTime != ''">
+            AND ar.submit_time &gt;= #{query.startTime}
+        </if>
+        <if test="query.endTime != null and query.endTime != ''">
+            AND ar.submit_time &lt;= #{query.endTime}
+        </if>
+        ORDER BY 
+            ar.priority DESC,
+            ar.current_status ASC,
+            ar.submit_time DESC
+    </select>
+
+    <!-- 查询审核记录详情（带申请人和处理人信息） -->
+    <select id="selectDetailById" resultType="java.util.Map">
+        SELECT 
+            ar.id,
+            ar.audit_no AS auditNo,
+            ar.audit_type AS auditType,
+            ar.business_id AS businessId,
+            ar.title,
+            ar.content,
+            ar.attachments,
+            ar.current_status AS currentStatus,
+            ar.priority,
+            ar.submit_time AS submitTime,
+            ar.finish_time AS finishTime,
+            ar.final_opinion AS finalOpinion,
+            ar.reject_reason AS rejectReason,
+            ar.current_admin_id AS currentAdminId,
+            ar.applicant_id AS applicantId,
+            ar.create_time AS createTime,
+            ar.update_time AS updateTime,
+            u.username AS applicantUsername,
+            u.name AS applicantName,
+            u.avatar AS applicantAvatar,
+            u.phone AS applicantPhone,
+            a.name AS currentAdminName
+        FROM audit_record ar
+        LEFT JOIN user_info u ON ar.applicant_id = u.id
+        LEFT JOIN admin_info a ON ar.current_admin_id = a.id
+        WHERE ar.id = #{id}
+          AND ar.is_deleted = 0
+    </select>
+
+    <!-- 查询总体统计 -->
+    <select id="selectOverallStatistics" resultType="java.util.Map">
+        SELECT 
+            COUNT(1) AS totalCount,
+            SUM(CASE WHEN current_status = 0 THEN 1 ELSE 0 END) AS pendingCount,
+            SUM(CASE WHEN current_status = 1 THEN 1 ELSE 0 END) AS processingCount,
+            SUM(CASE WHEN current_status = 2 THEN 1 ELSE 0 END) AS approvedCount,
+            SUM(CASE WHEN current_status = 3 THEN 1 ELSE 0 END) AS rejectedCount,
+            SUM(CASE WHEN DATE(submit_time) = CURDATE() THEN 1 ELSE 0 END) AS todayCount
+        FROM audit_record
+        WHERE is_deleted = 0
+    </select>
+
+    <!-- 查询按类型统计 -->
+    <select id="selectTypeStatistics" resultType="java.util.Map">
+        SELECT 
+            audit_type AS auditType,
+            COUNT(1) AS count,
+            SUM(CASE WHEN current_status IN (0, 1) THEN 1 ELSE 0 END) AS pendingCount
+        FROM audit_record
+        WHERE is_deleted = 0
+        GROUP BY audit_type
+        ORDER BY audit_type
+    </select>
+
+
+</mapper>

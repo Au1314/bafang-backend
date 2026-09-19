@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.user.mapper.UserForumPostMapper">
+
+    <insert id="insertPost" parameterType="com.baffang.common.entity.ForumPost" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO forum_post (
+            user_id,
+            title,
+            content,
+            images,
+            like_count,
+            collect_count,
+            is_top,
+            is_essence,
+            create_time,
+            update_time,
+            is_deleted
+        ) VALUES (
+            #{userId},
+            #{title},
+            #{content},
+            #{images},
+            0,
+            0,
+            0,
+            0,
+            NOW(),
+            NOW(),
+            0
+        )
+    </insert>
+
+    <select id="getPostList" resultType="java.util.Map">
+        SELECT 
+            fp.id AS postId,
+            fp.user_id AS userId,
+            fp.title,
+            fp.content,
+            fp.images,
+            DATE_FORMAT(fp.create_time, '%Y-%m-%d %H:%i:%s') AS createTime,
+            fp.like_count AS likeCount,
+            fp.collect_count AS collectCount,
+            ui.name AS publisherName,
+            ui.avatar AS publisherAvatar
+        FROM forum_post fp
+        JOIN user_info ui ON fp.user_id = ui.id
+        WHERE fp.is_deleted = 0 AND ui.is_deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (fp.title LIKE CONCAT('%', #{keyword}, '%') OR fp.content LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <choose>
+            <when test="sort == 'hot'">
+                ORDER BY fp.like_count DESC
+            </when>
+            <otherwise>
+                ORDER BY fp.create_time DESC
+            </otherwise>
+        </choose>
+    </select>
+
+    <update id="increasePostLikeCount" parameterType="Integer">
+        UPDATE forum_post
+        SET like_count = like_count + 1
+        WHERE id = #{postId} AND is_deleted = 0;
+    </update>
+    
+    <select id="getPostLikeCount" parameterType="Integer" resultType="Integer">
+        SELECT like_count
+        FROM forum_post
+        WHERE id = #{postId} AND is_deleted = 0;
+    </select>
+    
+    <select id="checkPostExists" parameterType="Integer" resultType="Integer">
+        SELECT COUNT(*)
+        FROM forum_post
+        WHERE id = #{postId} AND is_deleted = 0;
+    </select>
+    
+    <select id="getPostDetail" parameterType="Integer" resultType="com.baffang.user.vo.PostDetailResponseVO$PostVO">
+        SELECT 
+            id AS postId,
+            user_id AS userId,
+            title,
+            content,
+            images,
+            DATE_FORMAT(create_time, '%Y-%m-%d %H:%i:%s') AS createTime
+        FROM forum_post
+        WHERE id = #{postId} AND is_deleted = 0;
+    </select>
+    
+    <select id="selectPostDetailMap" parameterType="Integer" resultType="java.util.Map">
+        SELECT 
+            fp.id AS postId,
+            fp.user_id AS userId,
+            fp.title,
+            fp.content,
+            fp.images,
+            fp.like_count AS likeCount,
+            fp.collect_count AS collectCount,
+            DATE_FORMAT(fp.create_time, '%Y-%m-%d %H:%i:%s') AS createTime,
+            ui.name AS publisherName,
+            ui.avatar AS publisherAvatar
+        FROM forum_post fp
+        JOIN user_info ui ON fp.user_id = ui.id
+        WHERE fp.id = #{postId} AND fp.is_deleted = 0 AND ui.is_deleted = 0;
+    </select>
+
+</mapper>

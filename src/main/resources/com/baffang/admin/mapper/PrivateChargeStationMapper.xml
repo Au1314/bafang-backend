@@ -1,0 +1,332 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.admin.mapper.PrivateChargeStationMapper">
+
+    <!-- 统计已认证私桩数量 -->
+    <select id="countAuthenticatedStations" resultType="int">
+        SELECT COUNT(*) FROM private_charge_station 
+        WHERE is_deleted = 0 AND auth_status = 2
+    </select>
+
+    <!-- 按认证状态统计 -->
+    <select id="countByAuthStatus" resultType="int">
+        SELECT COUNT(*) FROM private_charge_station 
+        WHERE is_deleted = 0 AND auth_status = #{authStatus}
+    </select>
+
+    <!-- 统计私桩总数 -->
+    <select id="countTotal" resultType="int">
+        SELECT COUNT(*) FROM private_charge_station 
+        WHERE is_deleted = 0
+    </select>
+
+    <!-- 按状态分组统计 -->
+    <select id="countGroupByStatus" resultType="map">
+        SELECT status, COUNT(*) as count 
+        FROM private_charge_station 
+        WHERE is_deleted = 0 
+        GROUP BY status
+    </select>
+
+    <!-- 按类型分组统计 -->
+    <select id="countGroupByType" resultType="map">
+        SELECT type, COUNT(*) as count 
+        FROM private_charge_station 
+        WHERE is_deleted = 0 
+        GROUP BY type
+    </select>
+
+    <!-- 按电流类型分组统计 -->
+    <select id="countGroupByCurrentType" resultType="map">
+        SELECT current_type as currentType, COUNT(*) as count 
+        FROM private_charge_station 
+        WHERE is_deleted = 0 
+        GROUP BY current_type
+    </select>
+
+    <!-- 按认证状态分组统计 -->
+    <select id="countGroupByAuthStatus" resultType="map">
+        SELECT auth_status as authStatus, COUNT(*) as count 
+        FROM private_charge_station 
+        WHERE is_deleted = 0 
+        GROUP BY auth_status
+    </select>
+
+    <!-- 按开放状态分组统计 -->
+    <select id="countGroupByOpenStatus" resultType="map">
+        SELECT open_status as openStatus, COUNT(*) as count 
+        FROM private_charge_station 
+        WHERE is_deleted = 0 
+        GROUP BY open_status
+    </select>
+
+    <!-- 查询待审核列表 -->
+<select id="selectAuthList" resultType="com.baffang.admin.vo.StationAuthListVO">
+    SELECT 
+        s.id,
+        s.name AS stationName,
+        s.location_name AS address,
+        s.price AS defaultPrice,
+        s.price_type AS priceType,  <!-- 新增 -->
+        s.status,
+        s.auth_status AS authStatus,
+        s.create_time AS createTime,
+        s.owner_id AS ownerId,
+        u.username AS ownerUsername,
+        u.name AS ownerName,
+        u.phone AS ownerPhone
+    FROM private_charge_station s
+    LEFT JOIN user_info u ON s.owner_id = u.id
+    WHERE s.is_deleted = 0
+    <if test="authStatus != null">
+        AND s.auth_status = #{authStatus}
+    </if>
+    ORDER BY s.create_time DESC
+</select>
+
+<!-- 查询私桩认证详情 -->
+<select id="selectAuthDetail" resultType="com.baffang.admin.vo.StationAuthDetailVO">
+    SELECT 
+        s.id,
+        s.name AS stationName,
+        s.location_name AS address,
+        s.longitude,
+        s.latitude,
+        s.price AS defaultPrice,
+        s.price_type AS priceType,  <!-- 新增 -->
+        s.status,
+        s.description,
+        s.image,
+        s.rating,
+        s.auth_status AS authStatus,
+        s.create_time AS createTime,
+        s.update_time AS updateTime,
+        s.owner_id AS ownerId,
+        u.username AS ownerUsername,
+        u.name AS ownerName,
+        u.phone AS ownerPhone,
+        u.email AS ownerEmail,
+        u.avatar AS ownerAvatar,
+        u.auth_vehicle AS ownerAuthVehicle,
+        u.auth_charging_station AS ownerAuthChargingStation
+    FROM private_charge_station s
+    LEFT JOIN user_info u ON s.owner_id = u.id
+    WHERE s.id = #{id} AND s.is_deleted = 0
+</select>
+
+
+
+    <!-- 更新认证状态（仅保留一份） -->
+    <update id="updateAuthStatus">
+        UPDATE private_charge_station 
+        SET auth_status = #{authStatus}, update_time = NOW()
+        WHERE id = #{id} AND is_deleted = 0
+    </update>
+
+    <!-- 根据ID查询 -->
+    <select id="selectById" resultType="map">
+        SELECT * FROM private_charge_station WHERE id = #{id}
+    </select>
+
+    <!-- 分页查询私桩列表 -->
+<select id="selectPageList" resultType="com.baffang.admin.dto.PrivateStationListDTO">
+    SELECT 
+        s.id,
+        s.name,
+        s.location_name as locationName,
+        s.longitude,
+        s.latitude,
+        s.price,
+        s.price_type as priceType,  <!-- 新增 -->
+        s.status,
+        s.type,
+        s.current_type as currentType,
+        s.max_charge_power as maxChargePower,
+        s.open_status as openStatus,
+        s.auth_status as authStatus,
+        s.owner_id as ownerId,
+        s.rating,
+        s.image,
+        s.create_time as createTime,
+        u.name as ownerName,
+        u.phone as ownerPhone
+    FROM private_charge_station s
+    LEFT JOIN user_info u ON s.owner_id = u.id
+    WHERE s.is_deleted = 0
+    <if test="query.name != null and query.name != ''">
+        AND s.name LIKE CONCAT('%', #{query.name}, '%')
+    </if>
+    <if test="query.status != null">
+        AND s.status = #{query.status}
+    </if>
+    <if test="query.authStatus != null">
+        AND s.auth_status = #{query.authStatus}
+    </if>
+    <if test="query.type != null">
+        AND s.type = #{query.type}
+    </if>
+    <if test="query.openStatus != null">
+        AND s.open_status = #{query.openStatus}
+    </if>
+    <if test="query.ownerId != null">
+        AND s.owner_id = #{query.ownerId}
+    </if>
+    <!-- 新增：按定价类型筛选 -->
+    <if test="query.priceType != null">
+        AND s.price_type = #{query.priceType}
+    </if>
+    ORDER BY s.create_time DESC
+    LIMIT #{offset}, #{limit}
+</select>
+
+
+    <!-- 统计符合条件的数量 -->
+<select id="countByCondition" resultType="java.lang.Long">
+    SELECT COUNT(*) 
+    FROM private_charge_station s
+    WHERE s.is_deleted = 0
+    <if test="query.name != null and query.name != ''">
+        AND s.name LIKE CONCAT('%', #{query.name}, '%')
+    </if>
+    <if test="query.status != null">
+        AND s.status = #{query.status}
+    </if>
+    <if test="query.authStatus != null">
+        AND s.auth_status = #{query.authStatus}
+    </if>
+    <if test="query.type != null">
+        AND s.type = #{query.type}
+    </if>
+    <if test="query.openStatus != null">
+        AND s.open_status = #{query.openStatus}
+    </if>
+    <if test="query.ownerId != null">
+        AND s.owner_id = #{query.ownerId}
+    </if>
+    <!-- 新增 -->
+    <if test="query.priceType != null">
+        AND s.price_type = #{query.priceType}
+    </if>
+</select>
+
+
+    <!-- 查询私桩详情 -->
+<select id="selectDetailById" resultType="com.baffang.admin.dto.PrivateStationDetailDTO">
+    SELECT 
+        s.id,
+        s.name,
+        s.location_name as locationName,
+        s.longitude,
+        s.latitude,
+        s.price,
+        s.price_type as priceType,  <!-- 新增 -->
+        s.status,
+        s.type,
+        s.current_type as currentType,
+        s.max_charge_voltage as maxChargeVoltage,
+        s.max_charge_current as maxChargeCurrent,
+        s.max_charge_power as maxChargePower,
+        s.max_vehicles as maxVehicles,
+        s.current_vehicles as currentVehicles,
+        s.open_status as openStatus,
+        s.open_time as openTime,
+        s.close_time as closeTime,
+        s.auth_status as authStatus,
+        s.image,
+        s.description,
+        s.rating,
+        s.owner_id as ownerId,
+        s.create_time as createTime,
+        s.update_time as updateTime,
+        u.name as ownerName,
+        u.phone as ownerPhone,
+        u.avatar as ownerAvatar
+    FROM private_charge_station s
+    LEFT JOIN user_info u ON s.owner_id = u.id
+    WHERE s.id = #{id} AND s.is_deleted = 0
+</select>
+
+
+    <!-- 更新私桩信息 -->
+<update id="updateStation">
+    UPDATE private_charge_station
+    <set>
+        <if test="station.name != null">
+            name = #{station.name},
+        </if>
+        <if test="station.locationName != null">
+            location_name = #{station.locationName},
+        </if>
+        <if test="station.longitude != null">
+            longitude = #{station.longitude},
+        </if>
+        <if test="station.latitude != null">
+            latitude = #{station.latitude},
+        </if>
+        <if test="station.price != null">
+            price = #{station.price},
+        </if>
+        <!-- 新增 -->
+        <if test="station.priceType != null">
+            price_type = #{station.priceType},
+        </if>
+        <if test="station.status != null">
+            status = #{station.status},
+        </if>
+        <if test="station.type != null">
+            type = #{station.type},
+        </if>
+        <if test="station.currentType != null">
+            current_type = #{station.currentType},
+        </if>
+        <if test="station.maxChargeVoltage != null">
+            max_charge_voltage = #{station.maxChargeVoltage},
+        </if>
+        <if test="station.maxChargeCurrent != null">
+            max_charge_current = #{station.maxChargeCurrent},
+        </if>
+        <if test="station.maxChargePower != null">
+            max_charge_power = #{station.maxChargePower},
+        </if>
+        <if test="station.openStatus != null">
+            open_status = #{station.openStatus},
+        </if>
+        <if test="station.image != null">
+            image = #{station.image},
+        </if>
+        <if test="station.description != null">
+            description = #{station.description},
+        </if>
+        update_time = NOW()
+    </set>
+    WHERE id = #{id} AND is_deleted = 0
+</update>
+
+
+    <!-- 软删除私桩 -->
+    <update id="softDeleteById">
+        UPDATE private_charge_station 
+        SET is_deleted = 1, update_time = NOW()
+        WHERE id = #{id} AND is_deleted = 0
+    </update>
+
+    <!-- 批量软删除私桩 -->
+    <update id="batchSoftDelete">
+        UPDATE private_charge_station 
+        SET is_deleted = 1, update_time = NOW()
+        WHERE id IN 
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND is_deleted = 0
+    </update>
+
+    <!-- 检查私桩是否存在 -->
+    <select id="checkExists" resultType="int">
+        SELECT COUNT(*) FROM private_charge_station 
+        WHERE id = #{id} AND is_deleted = 0
+    </select>
+
+</mapper>

@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.admin.mapper.ComplaintAuditMapper">
+
+    <!-- 查询投诉/故障列表 -->
+    <select id="selectComplaintList" resultType="com.baffang.admin.vo.ComplaintListVO">
+        SELECT 
+            ar.id,
+            ar.audit_no AS auditNo,
+            ar.audit_type AS auditType,
+            ar.business_id AS stationId,
+            pcs.name AS stationName,
+            pcs.location_name AS stationLocation,
+            ar.applicant_id AS applicantId,
+            u.name AS applicantName,
+            u.phone AS applicantPhone,
+            ar.title,
+            ar.current_status AS currentStatus,
+            ar.priority,
+            adm.name AS currentAdminName,
+            ar.submit_time AS submitTime
+        FROM audit_record ar
+        LEFT JOIN user_info u ON ar.applicant_id = u.id
+        LEFT JOIN private_charge_station pcs ON ar.business_id = pcs.id
+        LEFT JOIN admin_info adm ON ar.current_admin_id = adm.id
+        WHERE ar.is_deleted = 0
+          AND ar.audit_type IN (2, 3)
+        <if test="query.auditType != null">
+            AND ar.audit_type = #{query.auditType}
+        </if>
+        <if test="query.status != null">
+            AND ar.current_status = #{query.status}
+        </if>
+        <if test="query.priority != null">
+            AND ar.priority = #{query.priority}
+        </if>
+        <if test="query.stationId != null">
+            AND ar.business_id = #{query.stationId}
+        </if>
+        <if test="query.keyword != null and query.keyword != ''">
+            AND (ar.audit_no LIKE CONCAT('%', #{query.keyword}, '%')
+                 OR ar.title LIKE CONCAT('%', #{query.keyword}, '%'))
+        </if>
+        <if test="query.startTime != null and query.startTime != ''">
+            AND ar.submit_time &gt;= #{query.startTime}
+        </if>
+        <if test="query.endTime != null and query.endTime != ''">
+            AND ar.submit_time &lt;= CONCAT(#{query.endTime}, ' 23:59:59')
+        </if>
+        ORDER BY ar.priority DESC, ar.submit_time DESC
+    </select>
+
+    <!-- 查询投诉/故障详情 -->
+    <select id="selectComplaintDetail" resultType="com.baffang.admin.vo.ComplaintDetailVO">
+        SELECT 
+            ar.id,
+            ar.audit_no AS auditNo,
+            ar.audit_type AS auditType,
+            ar.business_id AS stationId,
+            pcs.name AS stationName,
+            pcs.location_name AS stationLocation,
+            pcs.owner_id AS stationOwnerId,
+            owner.name AS stationOwnerName,
+            owner.phone AS stationOwnerPhone,
+            ar.applicant_id AS applicantId,
+            u.name AS applicantName,
+            u.phone AS applicantPhone,
+            u.avatar AS applicantAvatar,
+            ar.title,
+            ar.content,
+            ar.attachments,
+            ar.current_status AS currentStatus,
+            ar.priority,
+            ar.current_admin_id AS currentAdminId,
+            adm.name AS currentAdminName,
+            ar.submit_time AS submitTime,
+            ar.finish_time AS finishTime,
+            ar.final_opinion AS finalOpinion,
+            ar.reject_reason AS rejectReason
+        FROM audit_record ar
+        LEFT JOIN user_info u ON ar.applicant_id = u.id
+        LEFT JOIN private_charge_station pcs ON ar.business_id = pcs.id
+        LEFT JOIN user_info owner ON pcs.owner_id = owner.id
+        LEFT JOIN admin_info adm ON ar.current_admin_id = adm.id
+        WHERE ar.id = #{id}
+          AND ar.is_deleted = 0
+    </select>
+
+    <!-- 根据ID查询审核记录 -->
+    <select id="selectById" resultType="com.baffang.common.entity.AuditRecord">
+        SELECT 
+            id, audit_no AS auditNo, audit_type AS auditType, business_id AS businessId, 
+            applicant_id AS applicantId, title, content, attachments, 
+            current_status AS currentStatus, current_admin_id AS currentAdminId,
+            priority, submit_time AS submitTime, finish_time AS finishTime, 
+            final_opinion AS finalOpinion, reject_reason AS rejectReason,
+            is_deleted AS isDeleted, create_time AS createTime, update_time AS updateTime
+        FROM audit_record 
+        WHERE id = #{id} AND is_deleted = 0
+    </select>
+
+    <!-- 更新审核记录 -->
+    <update id="updateRecord">
+        UPDATE audit_record
+        SET current_status = #{currentStatus},
+            current_admin_id = #{currentAdminId},
+            priority = #{priority},
+            <if test="finishTime != null">
+            finish_time = #{finishTime},
+            </if>
+            <if test="finalOpinion != null">
+            final_opinion = #{finalOpinion},
+            </if>
+            <if test="rejectReason != null">
+            reject_reason = #{rejectReason},
+            </if>
+            update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 插入审核日志 -->
+    <insert id="insertAuditLog" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO audit_log (audit_id, admin_id, action, from_status, to_status, opinion, create_time)
+        VALUES (#{auditId}, #{adminId}, #{action}, #{fromStatus}, #{toStatus}, #{opinion}, #{createTime})
+    </insert>
+
+    <!-- 查询审核日志 -->
+    <select id="selectAuditLogs" resultType="com.baffang.admin.vo.AuditLogVO">
+        SELECT 
+            al.id,
+            al.admin_id AS adminId,
+            adm.name AS adminName,
+            al.action,
+            al.from_status AS fromStatus,
+            al.to_status AS toStatus,
+            al.opinion,
+            al.create_time AS createTime
+        FROM audit_log al
+        LEFT JOIN admin_info adm ON al.admin_id = adm.id
+        WHERE al.audit_id = #{auditId}
+        ORDER BY al.create_time DESC
+    </select>
+
+    <!-- 统计数据 -->
+    <select id="selectStatistics" resultType="com.baffang.admin.vo.ComplaintStatisticsVO">
+        SELECT 
+            -- 投诉统计
+            SUM(CASE WHEN audit_type = 2 THEN 1 ELSE 0 END) AS complaintTotal,
+            SUM(CASE WHEN audit_type = 2 AND current_status = 0 THEN 1 ELSE 0 END) AS complaintPending,
+            SUM(CASE WHEN audit_type = 2 AND current_status = 1 THEN 1 ELSE 0 END) AS complaintProcessing,
+            SUM(CASE WHEN audit_type = 2 AND current_status = 2 THEN 1 ELSE 0 END) AS complaintPassed,
+            SUM(CASE WHEN audit_type = 2 AND current_status = 3 THEN 1 ELSE 0 END) AS complaintRejected,
+            -- 故障统计
+            SUM(CASE WHEN audit_type = 3 THEN 1 ELSE 0 END) AS faultTotal,
+            SUM(CASE WHEN audit_type = 3 AND current_status = 0 THEN 1 ELSE 0 END) AS faultPending,
+            SUM(CASE WHEN audit_type = 3 AND current_status = 1 THEN 1 ELSE 0 END) AS faultProcessing,
+            SUM(CASE WHEN audit_type = 3 AND current_status = 2 THEN 1 ELSE 0 END) AS faultPassed,
+            SUM(CASE WHEN audit_type = 3 AND current_status = 3 THEN 1 ELSE 0 END) AS faultRejected,
+            -- 紧急与今日
+            SUM(CASE WHEN priority = 3 AND current_status IN (0, 1) THEN 1 ELSE 0 END) AS urgentCount,
+            SUM(CASE WHEN DATE(submit_time) = CURDATE() THEN 1 ELSE 0 END) AS todayCount
+        FROM audit_record
+        WHERE is_deleted = 0 AND audit_type IN (2, 3)
+    </select>
+
+</mapper>

@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.admin.mapper.SystemLogMapper">
+
+    <!-- 插入日志 -->
+    <insert id="insert" parameterType="com.baffang.common.entity.SystemLog" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO system_log (
+            user_id, admin_id, module, action, method, url, 
+            params, result, ip, user_agent, status, error_msg, 
+            execution_time, create_time
+        ) VALUES (
+            #{userId}, #{adminId}, #{module}, #{action}, #{method}, #{url},
+            #{params}, #{result}, #{ip}, #{userAgent}, #{status}, #{errorMsg},
+            #{executionTime}, #{createTime}
+        )
+    </insert>
+
+    <!-- 分页查询 -->
+    <select id="selectPageList" resultType="com.baffang.common.entity.SystemLog">
+        SELECT * FROM system_log
+        WHERE 1=1
+        <if test="module != null and module != ''">
+            AND module LIKE CONCAT('%', #{module}, '%')
+        </if>
+        <if test="action != null and action != ''">
+            AND action LIKE CONCAT('%', #{action}, '%')
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        <if test="startTime != null">
+            AND create_time >= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND create_time &lt;= #{endTime}
+        </if>
+        ORDER BY create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 统计数量 -->
+    <select id="countByCondition" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM system_log
+        WHERE 1=1
+        <if test="module != null and module != ''">
+            AND module LIKE CONCAT('%', #{module}, '%')
+        </if>
+        <if test="action != null and action != ''">
+            AND action LIKE CONCAT('%', #{action}, '%')
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        <if test="startTime != null">
+            AND create_time >= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND create_time &lt;= #{endTime}
+        </if>
+    </select>
+
+    <!-- 按模块统计 -->
+    <select id="countGroupByModule" resultType="map">
+        SELECT module, COUNT(*) as count
+        FROM system_log
+        GROUP BY module
+        ORDER BY count DESC
+    </select>
+
+    <!-- 按日期统计 -->
+    <select id="countGroupByDate" resultType="map">
+        SELECT DATE(create_time) as date, COUNT(*) as count
+        FROM system_log
+        WHERE create_time >= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
+        GROUP BY DATE(create_time)
+        ORDER BY date ASC
+    </select>
+
+     <!-- 查询日志列表 -->
+    <select id="selectList" resultType="com.baffang.admin.vo.SystemLogListVO">
+        SELECT 
+            sl.id,
+            sl.admin_id AS adminId,
+            a.name AS adminName,
+            sl.user_id AS userId,
+            u.name AS userName,
+            sl.module,
+            sl.action,
+            sl.method,
+            sl.url,
+            sl.ip,
+            sl.status,
+            sl.execution_time AS executionTime,
+            sl.create_time AS createTime
+        FROM system_log sl
+        LEFT JOIN admin_info a ON sl.admin_id = a.id AND a.is_deleted = 0
+        LEFT JOIN user_info u ON sl.user_id = u.id AND u.is_deleted = 0
+        <where>
+            <if test="query.module != null and query.module != ''">
+                AND sl.module LIKE CONCAT('%', #{query.module}, '%')
+            </if>
+            <if test="query.action != null and query.action != ''">
+                AND sl.action LIKE CONCAT('%', #{query.action}, '%')
+            </if>
+            <if test="query.adminId != null">
+                AND sl.admin_id = #{query.adminId}
+            </if>
+            <if test="query.userId != null">
+                AND sl.user_id = #{query.userId}
+            </if>
+            <if test="query.status != null">
+                AND sl.status = #{query.status}
+            </if>
+            <if test="query.startTime != null and query.startTime != ''">
+                AND sl.create_time &gt;= #{query.startTime}
+            </if>
+            <if test="query.endTime != null and query.endTime != ''">
+                AND sl.create_time &lt;= #{query.endTime}
+            </if>
+        </where>
+        ORDER BY sl.id DESC
+    </select>
+
+    <!-- 查询日志详情 -->
+    <select id="selectDetailById" resultType="com.baffang.admin.vo.SystemLogDetailVO">
+        SELECT 
+            sl.id,
+            sl.admin_id AS adminId,
+            a.name AS adminName,
+            sl.user_id AS userId,
+            u.name AS userName,
+            sl.module,
+            sl.action,
+            sl.method,
+            sl.url,
+            sl.params,
+            sl.result,
+            sl.ip,
+            sl.user_agent AS userAgent,
+            sl.status,
+            sl.error_msg AS errorMsg,
+            sl.execution_time AS executionTime,
+            sl.create_time AS createTime
+        FROM system_log sl
+        LEFT JOIN admin_info a ON sl.admin_id = a.id AND a.is_deleted = 0
+        LEFT JOIN user_info u ON sl.user_id = u.id AND u.is_deleted = 0
+        WHERE sl.id = #{id}
+    </select>
+
+    <!-- 获取所有模块名称 -->
+    <select id="selectDistinctModules" resultType="java.lang.String">
+        SELECT DISTINCT module FROM system_log WHERE module IS NOT NULL ORDER BY module
+    </select>
+
+</mapper>

@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.baffang.admin.mapper.SystemNoticeMapper">
+
+    <!-- 基础结果映射 -->
+    <resultMap id="BaseResultMap" type="com.baffang.common.entity.SystemNotice">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="title" property="title"/>
+        <result column="content" property="content"/>
+        <result column="type" property="type"/>
+        <result column="related_id" property="relatedId"/>
+        <result column="related_type" property="relatedType"/>
+        <result column="is_read" property="isRead"/>
+        <result column="create_time" property="createTime"/>
+        <result column="read_time" property="readTime"/>
+        <result column="is_deleted" property="isDeleted"/>
+    </resultMap>
+
+    <!-- 管理端DTO结果映射 -->
+    <resultMap id="AdminNoticeDTOMap" type="com.baffang.admin.dto.AdminNoticeDTO">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="user_name" property="userName"/>
+        <result column="title" property="title"/>
+        <result column="content" property="content"/>
+        <result column="type" property="type"/>
+        <result column="related_id" property="relatedId"/>
+        <result column="related_type" property="relatedType"/>
+        <result column="is_read" property="isRead"/>
+        <result column="create_time" property="createTime"/>
+        <result column="read_time" property="readTime"/>
+    </resultMap>
+
+    <!-- 基础字段 -->
+    <sql id="Base_Column_List">
+        id, user_id, title, content, type, related_id, related_type, 
+        is_read, create_time, read_time, is_deleted
+    </sql>
+
+    <!-- ==================== 管理端查询 ==================== -->
+
+    <!-- 管理端：查询所有通知（分页，关联用户信息） -->
+    <select id="selectAllNotices" resultMap="AdminNoticeDTOMap">
+        SELECT 
+            n.id,
+            n.user_id,
+            u.name AS user_name,
+            n.title,
+            n.content,
+            n.type,
+            n.related_id,
+            n.related_type,
+            n.is_read,
+            n.create_time,
+            n.read_time
+        FROM system_notice n
+        LEFT JOIN user_info u ON n.user_id = u.id
+        WHERE n.is_deleted = 0
+        <if test="type != null">
+            AND n.type = #{type}
+        </if>
+        <if test="userId != null">
+            AND n.user_id = #{userId}
+        </if>
+        <if test="isRead != null">
+            AND n.is_read = #{isRead}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (n.title LIKE CONCAT('%', #{keyword}, '%') 
+                 OR n.content LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY n.create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 管理端：统计所有通知数量 -->
+    <select id="countAllNotices" resultType="int">
+        SELECT COUNT(*)
+        FROM system_notice n
+        WHERE n.is_deleted = 0
+        <if test="type != null">
+            AND n.type = #{type}
+        </if>
+        <if test="userId != null">
+            AND n.user_id = #{userId}
+        </if>
+        <if test="isRead != null">
+            AND n.is_read = #{isRead}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (n.title LIKE CONCAT('%', #{keyword}, '%') 
+                 OR n.content LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+    </select>
+
+    <!-- 根据ID查询通知详情（关联用户信息） -->
+    <select id="selectDetailById" resultMap="AdminNoticeDTOMap">
+        SELECT 
+            n.id,
+            n.user_id,
+            u.name AS user_name,
+            n.title,
+            n.content,
+            n.type,
+            n.related_id,
+            n.related_type,
+            n.is_read,
+            n.create_time,
+            n.read_time
+        FROM system_notice n
+        LEFT JOIN user_info u ON n.user_id = u.id
+        WHERE n.id = #{id}
+        AND n.is_deleted = 0
+    </select>
+
+    <!-- ==================== 插入操作 ==================== -->
+
+    <!-- 插入通知 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" 
+            parameterType="com.baffang.common.entity.SystemNotice">
+        INSERT INTO system_notice (
+            user_id, title, content, type, related_id, related_type,
+            is_read, create_time, is_deleted
+        ) VALUES (
+            #{userId}, #{title}, #{content}, #{type}, #{relatedId}, #{relatedType},
+            0, NOW(), 0
+        )
+    </insert>
+
+    <!-- 批量插入通知 -->
+    <insert id="batchInsert">
+        INSERT INTO system_notice (
+            user_id, title, content, type, related_id, related_type,
+            is_read, create_time, is_deleted
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.userId}, #{item.title}, #{item.content}, #{item.type}, 
+             #{item.relatedId}, #{item.relatedType}, 0, NOW(), 0)
+        </foreach>
+    </insert>
+
+    <!-- ==================== 删除操作 ==================== -->
+
+    <!-- 管理端：删除通知（软删除） -->
+    <update id="deleteByAdmin">
+        UPDATE system_notice
+        SET is_deleted = 1
+        WHERE id = #{id}
+        AND is_deleted = 0
+    </update>
+
+    <!-- 管理端：批量删除通知（软删除） -->
+    <update id="batchDeleteByAdmin">
+        UPDATE system_notice
+        SET is_deleted = 1
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND is_deleted = 0
+    </update>
+
+</mapper>

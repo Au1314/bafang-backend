@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.user.mapper.UserAuditRecordMapper">
+
+    <insert id="insertAuditRecord" parameterType="com.baffang.common.entity.AuditRecord" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO audit_record (
+            audit_no,
+            audit_type,
+            business_id,
+            applicant_id,
+            title,
+            content,
+            attachments,
+            current_status,
+            priority,
+            submit_time,
+            create_time,
+            update_time
+        ) VALUES (
+            #{auditNo},
+            #{auditType},
+            #{businessId},
+            #{applicantId},
+            #{title},
+            #{content},
+            #{attachments},
+            #{currentStatus},
+            #{priority},
+            NOW(),
+            NOW(),
+            NOW()
+        )
+    </insert>
+    
+    <select id="selectMyReportList" resultType="com.baffang.user.vo.ChargingReportListVO">
+        SELECT 
+            ar.id AS reportId,
+            ar.audit_no AS reportNo,
+            ar.business_id AS stationId,
+            pcs.name AS stationName,
+            CASE ar.audit_type 
+                WHEN 2 THEN 0 -- audit_type=2(充电桩投诉) -> reportType=0(举报)
+                WHEN 3 THEN 1 -- audit_type=3(充电桩故障) -> reportType=1(故障)
+                ELSE NULL 
+            END AS reportType,
+            ar.title,
+            ar.current_status AS status,
+            DATE_FORMAT(ar.create_time, '%Y-%m-%d %H:%i:%s') AS createTime
+        FROM audit_record ar
+        LEFT JOIN private_charge_station pcs ON ar.business_id = pcs.id
+        WHERE ar.applicant_id = #{applicantId}
+        AND ar.is_deleted = 0
+        AND (ar.audit_type = 2 OR ar.audit_type = 3) -- 只查询充电桩投诉和故障记录
+        <if test="reportType != null">
+            AND ar.audit_type = CASE #{reportType} 
+                WHEN 0 THEN 2 -- reportType=0(举报) -> audit_type=2(充电桩投诉)
+                WHEN 1 THEN 3 -- reportType=1(故障) -> audit_type=3(充电桩故障)
+            END
+        </if>
+        <if test="status != null">
+            AND ar.current_status = #{status}
+        </if>
+        ORDER BY ar.create_time DESC
+    </select>
+    
+    <select id="selectReportDetailById" resultType="com.baffang.user.vo.ChargingReportDetailVO">
+        SELECT 
+            ar.id AS reportId,
+            ar.audit_no AS reportNo,
+            CASE ar.audit_type 
+                WHEN 2 THEN 0 -- audit_type=2(充电桩投诉) -> reportType=0(举报/投诉)
+                WHEN 3 THEN 1 -- audit_type=3(充电桩故障) -> reportType=1(故障)
+                ELSE NULL 
+            END AS reportType,
+            ar.business_id AS stationId,
+            ar.applicant_id AS userId,
+            ar.title,
+            ar.content,
+            ar.attachments,
+            ar.current_status AS status,
+            ar.current_admin_id AS adminId,
+            ar.priority,
+            DATE_FORMAT(ar.submit_time, '%Y-%m-%d %H:%i:%s') AS submitTime,
+            DATE_FORMAT(ar.finish_time, '%Y-%m-%d %H:%i:%s') AS finishTime,
+            ar.final_opinion AS finalOpinion,
+            ar.reject_reason AS rejectReason,
+            DATE_FORMAT(ar.create_time, '%Y-%m-%d %H:%i:%s') AS createTime,
+            DATE_FORMAT(ar.update_time, '%Y-%m-%d %H:%i:%s') AS updateTime
+        FROM audit_record ar
+        WHERE ar.id = #{reportId}
+        AND ar.is_deleted = 0
+        AND (ar.audit_type = 2 OR ar.audit_type = 3) -- 只查询充电桩投诉和故障记录
+    </select>
+    
+    <select id="getReportStatus" resultType="java.lang.Integer">
+        SELECT current_status
+        FROM audit_record
+        WHERE id = #{reportId}
+        AND applicant_id = #{userId}
+        AND is_deleted = 0
+        AND (audit_type = 2 OR audit_type = 3) -- 只查询充电桩投诉和故障记录
+    </select>
+    
+    <update id="cancelReport" parameterType="java.lang.Integer">
+        UPDATE audit_record
+        SET 
+            current_status = 5, -- 5=已撤回
+            update_time = NOW()
+        WHERE id = #{reportId}
+        AND applicant_id = #{userId}
+        AND is_deleted = 0
+        AND (audit_type = 2 OR audit_type = 3) -- 只更新充电桩投诉和故障记录
+    </update>
+</mapper>

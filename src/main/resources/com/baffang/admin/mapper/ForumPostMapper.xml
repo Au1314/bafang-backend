@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.admin.mapper.ForumPostMapper">
+
+    <!-- 分页查询帖子列表 -->
+<select id="selectList" resultType="java.util.Map">
+    SELECT 
+        p.id,
+        p.user_id AS userId,
+        p.title,
+        p.content,
+        p.images,  <!-- 新增 -->
+        p.like_count AS likeCount,
+        p.collect_count AS collectCount,
+        p.is_top AS isTop,
+        p.is_essence AS isEssence,
+        p.create_time AS createTime,
+        p.update_time AS updateTime,
+        u.username AS userName,
+        u.avatar AS userAvatar,
+        (SELECT COUNT(1) FROM post_reply r WHERE r.post_id = p.id AND r.is_deleted = 0) AS replyCount
+    FROM forum_post p
+    LEFT JOIN user_info u ON p.user_id = u.id
+    WHERE p.is_deleted = 0
+    <if test="query.keyword != null and query.keyword != ''">
+        AND (p.title LIKE CONCAT('%', #{query.keyword}, '%')
+             OR p.content LIKE CONCAT('%', #{query.keyword}, '%'))
+    </if>
+    <if test="query.userId != null">
+        AND p.user_id = #{query.userId}
+    </if>
+    <if test="query.isTop != null">
+        AND p.is_top = #{query.isTop}
+    </if>
+    <if test="query.isEssence != null">
+        AND p.is_essence = #{query.isEssence}
+    </if>
+    <if test="query.startTime != null and query.startTime != ''">
+        AND p.create_time &gt;= #{query.startTime}
+    </if>
+    <if test="query.endTime != null and query.endTime != ''">
+        AND p.create_time &lt;= #{query.endTime}
+    </if>
+    ORDER BY p.is_top DESC, p.create_time DESC
+</select>
+
+
+    <!-- 查询帖子详情 -->
+<select id="selectDetailById" resultType="java.util.Map">
+    SELECT 
+        p.id,
+        p.user_id AS userId,
+        p.title,
+        p.content,
+        p.images,  <!-- 新增 -->
+        p.like_count AS likeCount,
+        p.collect_count AS collectCount,
+        p.is_top AS isTop,
+        p.is_essence AS isEssence,
+        p.create_time AS createTime,
+        p.update_time AS updateTime,
+        u.username AS userName,
+        u.name AS userNickname,
+        u.avatar AS userAvatar,
+        u.phone AS userPhone,
+        (SELECT COUNT(1) FROM post_reply r WHERE r.post_id = p.id AND r.is_deleted = 0) AS replyCount
+    FROM forum_post p
+    LEFT JOIN user_info u ON p.user_id = u.id
+    WHERE p.id = #{id} AND p.is_deleted = 0
+</select>
+
+
+    <!-- 检查帖子是否存在 -->
+    <select id="existsById" resultType="boolean">
+        SELECT COUNT(1) > 0 FROM forum_post WHERE id = #{id} AND is_deleted = 0
+    </select>
+
+    <!-- 逻辑删除帖子 -->
+    <update id="deleteById">
+        UPDATE forum_post SET is_deleted = 1, update_time = NOW() WHERE id = #{id}
+    </update>
+
+    <!-- 批量逻辑删除帖子 -->
+    <update id="batchDelete">
+        UPDATE forum_post SET is_deleted = 1, update_time = NOW()
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <!-- 设置置顶状态 -->
+    <update id="updateTop">
+        UPDATE forum_post SET is_top = #{isTop}, update_time = NOW() WHERE id = #{id} AND is_deleted = 0
+    </update>
+
+    <!-- 设置精华状态 -->
+    <update id="updateEssence">
+        UPDATE forum_post SET is_essence = #{isEssence}, update_time = NOW() WHERE id = #{id} AND is_deleted = 0
+    </update>
+
+    <!-- 查询帖子统计 -->
+    <select id="selectStatistics" resultType="java.util.Map">
+        SELECT 
+            COUNT(1) AS totalPostCount,
+            SUM(CASE WHEN DATE(create_time) = CURDATE() THEN 1 ELSE 0 END) AS todayPostCount,
+            SUM(CASE WHEN is_top = 1 THEN 1 ELSE 0 END) AS topPostCount,
+            SUM(CASE WHEN is_essence = 1 THEN 1 ELSE 0 END) AS essencePostCount
+        FROM forum_post
+        WHERE is_deleted = 0
+    </select>
+
+    <!-- 查询帖子的评论数 -->
+    <select id="selectReplyCount" resultType="java.lang.Integer">
+        SELECT COUNT(1) FROM post_reply WHERE post_id = #{postId} AND is_deleted = 0
+    </select>
+
+
+    <!-- 删除帖子下的所有评论 -->
+<update id="deleteRepliesByPostId">
+    UPDATE post_reply SET is_deleted = 1, update_time = NOW() WHERE post_id = #{postId}
+</update>
+
+<!-- 批量删除帖子下的所有评论 -->
+<update id="batchDeleteRepliesByPostIds">
+    UPDATE post_reply SET is_deleted = 1, update_time = NOW()
+    WHERE post_id IN
+    <foreach collection="postIds" item="postId" open="(" separator="," close=")">
+        #{postId}
+    </foreach>
+</update>
+
+
+</mapper>

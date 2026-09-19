@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.user.mapper.UserMapper">
+
+    <select id="selectByUsername" resultType="com.baffang.common.entity.UserInfo">
+        SELECT * FROM user_info WHERE username = #{username}
+    </select>
+
+    <select id="selectById" resultType="com.baffang.common.entity.UserInfo">
+        SELECT * FROM user_info WHERE id = #{id}
+    </select>
+    
+    <select id="selectByPhone" resultType="com.baffang.common.entity.UserInfo">
+        SELECT * FROM user_info WHERE phone = #{phone}
+    </select>
+
+    <insert id="insert" parameterType="com.baffang.common.entity.UserInfo" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user_info (username, name, password, type, phone, email, avatar, signature, auth_charging_station, auth_vehicle, privacy_vehicle, privacy_station, points, balance, is_deleted, create_time, update_time, last_login_time)
+        VALUES (#{username}, #{name}, #{password}, #{type}, #{phone}, #{email}, #{avatar}, #{signature}, #{authChargingStation}, #{authVehicle}, #{privacyVehicle}, #{privacyStation}, #{points}, #{balance}, #{isDeleted}, #{createTime}, #{updateTime}, #{lastLoginTime})
+    </insert>
+
+    <select id="countTotalUsers" resultType="int">
+        SELECT COUNT(*) FROM user_info WHERE is_deleted = 0
+    </select>
+
+    <!-- 统计今日活跃用户数 -->
+    <select id="countDailyActiveUsers" resultType="int">
+        SELECT COUNT(*) FROM user_info 
+        WHERE is_deleted = 0 
+          AND DATE(last_login_time) = #{date}
+    </select>
+
+    <!-- 更新用户充电桩认证状态 -->
+<update id="updateAuthChargingStation">
+    UPDATE user_info 
+    SET auth_charging_station = #{authStatus}, update_time = NOW()
+    WHERE id = #{id} AND is_deleted = 0
+</update>
+
+    <!-- 更新用户个人信息 -->
+    <update id="updateProfile" parameterType="com.baffang.common.entity.UserInfo">
+        UPDATE user_info
+        <set>
+            <if test="name != null and name != ''">name = #{name},</if>
+            <if test="email != null and email != ''">email = #{email},</if>
+            <if test="avatar != null and avatar != ''">avatar = #{avatar},</if>
+            <if test="signature != null and signature != ''">signature = #{signature},</if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{id} AND is_deleted = 0
+    </update>
+
+    <!-- 更新用户密码 -->
+    <update id="updatePassword">
+        UPDATE user_info
+        SET password = #{password}, update_time = NOW()
+        WHERE id = #{id} AND is_deleted = 0
+    </update>
+    
+    <!-- 更新用户隐私设置 -->
+    <update id="updatePrivacySettings" parameterType="com.baffang.common.entity.UserInfo">
+        UPDATE user_info
+        <set>
+            <if test="privacyVehicle != null">privacy_vehicle = #{privacyVehicle},</if>
+            <if test="privacyStation != null">privacy_station = #{privacyStation},</if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{id} AND is_deleted = 0
+    </update>
+
+</mapper>

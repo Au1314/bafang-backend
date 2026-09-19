@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.admin.mapper.ForumReportMapper">
+
+    <!-- 查询帖子举报列表 -->
+    <select id="selectPostReportList" resultType="java.util.Map">
+        SELECT 
+            ar.id,
+            ar.audit_no AS auditNo,
+            ar.audit_type AS auditType,
+            ar.business_id AS businessId,
+            ar.title,
+            ar.content,
+            ar.current_status AS currentStatus,
+            ar.priority,
+            ar.applicant_id AS applicantId,
+            ar.submit_time AS submitTime,
+            ar.current_admin_id AS currentAdminId,
+            u.name AS applicantName,
+            u.avatar AS applicantAvatar,
+            p.title AS reportedContent,
+            p.user_id AS reportedUserId,
+            pu.name AS reportedUserName,
+            a.name AS currentAdminName
+        FROM audit_record ar
+        LEFT JOIN user_info u ON ar.applicant_id = u.id
+        LEFT JOIN forum_post p ON ar.business_id = p.id
+        LEFT JOIN user_info pu ON p.user_id = pu.id
+        LEFT JOIN admin_info a ON ar.current_admin_id = a.id
+        WHERE ar.audit_type = 5 AND ar.is_deleted = 0
+        <if test="query.status != null">
+            AND ar.current_status = #{query.status}
+        </if>
+        <if test="query.priority != null">
+            AND ar.priority = #{query.priority}
+        </if>
+        <if test="query.keyword != null and query.keyword != ''">
+            AND (ar.audit_no LIKE CONCAT('%', #{query.keyword}, '%')
+                 OR ar.title LIKE CONCAT('%', #{query.keyword}, '%')
+                 OR ar.content LIKE CONCAT('%', #{query.keyword}, '%'))
+        </if>
+        <if test="query.startTime != null and query.startTime != ''">
+            AND ar.submit_time &gt;= #{query.startTime}
+        </if>
+        <if test="query.endTime != null and query.endTime != ''">
+            AND ar.submit_time &lt;= #{query.endTime}
+        </if>
+        ORDER BY ar.priority DESC, ar.current_status ASC, ar.submit_time DESC
+    </select>
+
+    <!-- 查询评论举报列表 -->
+    <select id="selectReplyReportList" resultType="java.util.Map">
+        SELECT 
+            ar.id,
+            ar.audit_no AS auditNo,
+            ar.audit_type AS auditType,
+            ar.business_id AS businessId,
+            ar.title,
+            ar.content,
+            ar.current_status AS currentStatus,
+            ar.priority,
+            ar.applicant_id AS applicantId,
+            ar.submit_time AS submitTime,
+            ar.current_admin_id AS currentAdminId,
+            u.name AS applicantName,
+            u.avatar AS applicantAvatar,
+            r.content AS reportedContent,
+            r.user_id AS reportedUserId,
+            ru.name AS reportedUserName,
+            a.name AS currentAdminName
+        FROM audit_record ar
+        LEFT JOIN user_info u ON ar.applicant_id = u.id
+        LEFT JOIN post_reply r ON ar.business_id = r.id
+        LEFT JOIN user_info ru ON r.user_id = ru.id
+        LEFT JOIN admin_info a ON ar.current_admin_id = a.id
+        WHERE ar.audit_type = 4 AND ar.is_deleted = 0
+        <if test="query.status != null">
+            AND ar.current_status = #{query.status}
+        </if>
+        <if test="query.priority != null">
+            AND ar.priority = #{query.priority}
+        </if>
+        <if test="query.keyword != null and query.keyword != ''">
+            AND (ar.audit_no LIKE CONCAT('%', #{query.keyword}, '%')
+                 OR ar.title LIKE CONCAT('%', #{query.keyword}, '%')
+                 OR ar.content LIKE CONCAT('%', #{query.keyword}, '%'))
+        </if>
+        <if test="query.startTime != null and query.startTime != ''">
+            AND ar.submit_time &gt;= #{query.startTime}
+        </if>
+        <if test="query.endTime != null and query.endTime != ''">
+            AND ar.submit_time &lt;= #{query.endTime}
+        </if>
+        ORDER BY ar.priority DESC, ar.current_status ASC, ar.submit_time DESC
+    </select>
+
+    <!-- 查询举报详情 -->
+    <select id="selectDetailById" resultType="java.util.Map">
+        SELECT 
+            ar.id,
+            ar.audit_no AS auditNo,
+            ar.audit_type AS auditType,
+            ar.business_id AS businessId,
+            ar.title,
+            ar.content,
+            ar.attachments,
+            ar.current_status AS currentStatus,
+            ar.priority,
+            ar.submit_time AS submitTime,
+            ar.finish_time AS finishTime,
+            ar.final_opinion AS finalOpinion,
+            ar.reject_reason AS rejectReason,
+            ar.current_admin_id AS currentAdminId,
+            ar.applicant_id AS applicantId,
+            ar.create_time AS createTime,
+            ar.update_time AS updateTime,
+            u.username AS applicantUsername,
+            u.name AS applicantName,
+            u.avatar AS applicantAvatar,
+            u.phone AS applicantPhone,
+            a.name AS currentAdminName
+        FROM audit_record ar
+        LEFT JOIN user_info u ON ar.applicant_id = u.id
+        LEFT JOIN admin_info a ON ar.current_admin_id = a.id
+        WHERE ar.id = #{id} AND ar.is_deleted = 0
+    </select>
+
+    <!-- 检查举报记录是否存在 -->
+    <select id="existsById" resultType="boolean">
+        SELECT COUNT(1) > 0 FROM audit_record 
+        WHERE id = #{id} AND audit_type IN (4, 5) AND is_deleted = 0
+    </select>
+
+    <!-- 获取当前状态 -->
+    <select id="selectCurrentStatus" resultType="java.lang.Integer">
+        SELECT current_status FROM audit_record 
+        WHERE id = #{id} AND audit_type IN (4, 5) AND is_deleted = 0
+    </select>
+
+    <!-- 审核通过 -->
+    <update id="updateStatusApproved">
+        UPDATE audit_record
+        SET current_status = 2,
+            current_admin_id = #{adminId},
+            final_opinion = #{opinion},
+            finish_time = #{finishTime},
+            update_time = NOW()
+        WHERE id = #{id} AND audit_type IN (4, 5) AND is_deleted = 0
+    </update>
+
+    <!-- 审核拒绝 -->
+    <update id="updateStatusRejected">
+        UPDATE audit_record
+        SET current_status = 3,
+            current_admin_id = #{adminId},
+            final_opinion = #{opinion},
+            reject_reason = #{rejectReason},
+            finish_time = #{finishTime},
+            update_time = NOW()
+        WHERE id = #{id} AND audit_type IN (4, 5) AND is_deleted = 0
+    </update>
+
+    <!-- 查询举报统计 -->
+    <select id="selectStatistics" resultType="java.util.Map">
+        SELECT 
+            SUM(CASE WHEN audit_type = 5 AND current_status IN (0, 1) THEN 1 ELSE 0 END) AS pendingPostReportCount,
+            SUM(CASE WHEN audit_type = 4 AND current_status IN (0, 1) THEN 1 ELSE 0 END) AS pendingReplyReportCount,
+            SUM(CASE WHEN current_status IN (2, 3) AND finish_time >= DATE_FORMAT(CURDATE(), '%Y-%m-01') THEN 1 ELSE 0 END) AS monthProcessedReportCount
+        FROM audit_record
+        WHERE audit_type IN (4, 5) AND is_deleted = 0
+    </select>
+
+    <!-- 根据ID查询业务信息（用于发送通知） -->
+<select id="selectBusinessInfo" resultType="java.util.Map">
+    SELECT 
+        ar.business_id AS businessId, 
+        ar.audit_type AS auditType,
+        ar.applicant_id AS applicantId,
+        CASE 
+            WHEN ar.audit_type = 5 THEN (SELECT user_id FROM forum_post WHERE id = ar.business_id)
+            WHEN ar.audit_type = 4 THEN (SELECT user_id FROM post_reply WHERE id = ar.business_id)
+        END AS reportedUserId
+    FROM audit_record ar
+    WHERE ar.id = #{id} AND ar.is_deleted = 0
+</select>
+
+
+</mapper>

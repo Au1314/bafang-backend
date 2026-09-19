@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.admin.mapper.AIDecisionRecordMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="BaseResultMap" type="com.baffang.common.entity.AIDecisionRecord">
+        <id column="id" property="id"/>
+        <result column="decision_no" property="decisionNo"/>
+        <result column="decision_type" property="decisionType"/>
+        <result column="trigger_type" property="triggerType"/>
+        <result column="business_type" property="businessType"/>
+        <result column="business_id" property="businessId"/>
+        <result column="input_data" property="inputData"/>
+        <result column="ai_analysis" property="aiAnalysis"/>
+        <result column="decision_result" property="decisionResult"/>
+        <result column="suggested_actions" property="suggestedActions"/>
+        <result column="confidence" property="confidence"/>
+        <result column="priority" property="priority"/>
+        <result column="status" property="status"/>
+        <result column="auto_execute" property="autoExecute"/>
+        <result column="execute_result" property="executeResult"/>
+        <result column="execute_time" property="executeTime"/>
+        <result column="handled_by" property="handledBy"/>
+        <result column="handle_time" property="handleTime"/>
+        <result column="handle_remark" property="handleRemark"/>
+        <result column="is_deleted" property="isDeleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <!-- 基础列 -->
+    <sql id="Base_Column_List">
+        id, decision_no, decision_type, trigger_type, business_type, business_id,
+        input_data, ai_analysis, decision_result, suggested_actions, confidence,
+        priority, status, auto_execute, execute_result, execute_time,
+        handled_by, handle_time, handle_remark, is_deleted, create_time, update_time
+    </sql>
+
+    <!-- ==================== 基础 CRUD ==================== -->
+
+    <!-- 根据ID查询 -->
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM ai_decision_record 
+        WHERE id = #{id} AND is_deleted = 0
+    </select>
+
+    <!-- 插入记录 -->
+    <insert id="insert" parameterType="com.baffang.common.entity.AIDecisionRecord" 
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ai_decision_record (
+            decision_no, decision_type, trigger_type, business_type, business_id,
+            input_data, ai_analysis, decision_result, suggested_actions, confidence,
+            priority, status, auto_execute, execute_result, execute_time,
+            handled_by, handle_time, handle_remark, is_deleted, create_time, update_time
+        ) VALUES (
+            #{decisionNo}, #{decisionType}, #{triggerType}, #{businessType}, #{businessId},
+            #{inputData}, #{aiAnalysis}, #{decisionResult}, #{suggestedActions}, #{confidence},
+            #{priority}, #{status}, #{autoExecute}, #{executeResult}, #{executeTime},
+            #{handledBy}, #{handleTime}, #{handleRemark}, 0, NOW(), NOW()
+        )
+    </insert>
+
+    <!-- 更新记录 -->
+    <update id="updateById" parameterType="com.baffang.common.entity.AIDecisionRecord">
+        UPDATE ai_decision_record
+        <set>
+            <if test="decisionNo != null">decision_no = #{decisionNo},</if>
+            <if test="decisionType != null">decision_type = #{decisionType},</if>
+            <if test="triggerType != null">trigger_type = #{triggerType},</if>
+            <if test="businessType != null">business_type = #{businessType},</if>
+            <if test="businessId != null">business_id = #{businessId},</if>
+            <if test="inputData != null">input_data = #{inputData},</if>
+            <if test="aiAnalysis != null">ai_analysis = #{aiAnalysis},</if>
+            <if test="decisionResult != null">decision_result = #{decisionResult},</if>
+            <if test="suggestedActions != null">suggested_actions = #{suggestedActions},</if>
+            <if test="confidence != null">confidence = #{confidence},</if>
+            <if test="priority != null">priority = #{priority},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="autoExecute != null">auto_execute = #{autoExecute},</if>
+            <if test="executeResult != null">execute_result = #{executeResult},</if>
+            <if test="executeTime != null">execute_time = #{executeTime},</if>
+            <if test="handledBy != null">handled_by = #{handledBy},</if>
+            <if test="handleTime != null">handle_time = #{handleTime},</if>
+            <if test="handleRemark != null">handle_remark = #{handleRemark},</if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{id} AND is_deleted = 0
+    </update>
+
+    <!-- 逻辑删除 -->
+    <update id="deleteById">
+        UPDATE ai_decision_record 
+        SET is_deleted = 1, update_time = NOW() 
+        WHERE id = #{id}
+    </update>
+
+    <!-- ==================== 业务查询 ==================== -->
+
+    <!-- 分页查询决策列表 -->
+    <select id="selectPageList" resultType="com.baffang.admin.vo.AIDecisionListVO">
+        SELECT 
+            r.id,
+            r.decision_no AS decisionNo,
+            r.decision_type AS decisionType,
+            r.business_type AS businessType,
+            r.business_id AS businessId,
+            r.confidence,
+            r.priority,
+            r.status,
+            r.auto_execute AS autoExecute,
+            r.handled_by AS handledBy,
+            a.name AS handlerName,
+            r.create_time AS createTime,
+            r.handle_time AS handleTime
+        FROM ai_decision_record r
+        LEFT JOIN admin_info a ON r.handled_by = a.id
+        WHERE r.is_deleted = 0
+        <if test="query.decisionType != null">
+            AND r.decision_type = #{query.decisionType}
+        </if>
+        <if test="query.status != null">
+            AND r.status = #{query.status}
+        </if>
+        <if test="query.priority != null">
+            AND r.priority = #{query.priority}
+        </if>
+        <if test="query.businessType != null and query.businessType != ''">
+            AND r.business_type = #{query.businessType}
+        </if>
+        <if test="query.startTime != null and query.startTime != ''">
+            AND r.create_time &gt;= #{query.startTime}
+        </if>
+        <if test="query.endTime != null and query.endTime != ''">
+            AND r.create_time &lt;= #{query.endTime}
+        </if>
+        ORDER BY r.priority DESC, r.create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 查询总数 -->
+    <select id="countByCondition" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM ai_decision_record r
+        WHERE r.is_deleted = 0
+        <if test="query.decisionType != null">
+            AND r.decision_type = #{query.decisionType}
+        </if>
+        <if test="query.status != null">
+            AND r.status = #{query.status}
+        </if>
+        <if test="query.priority != null">
+            AND r.priority = #{query.priority}
+        </if>
+        <if test="query.businessType != null and query.businessType != ''">
+            AND r.business_type = #{query.businessType}
+        </if>
+        <if test="query.startTime != null and query.startTime != ''">
+            AND r.create_time &gt;= #{query.startTime}
+        </if>
+        <if test="query.endTime != null and query.endTime != ''">
+            AND r.create_time &lt;= #{query.endTime}
+        </if>
+    </select>
+
+    <!-- 获取待处理的决策记录 -->
+    <select id="selectPendingDecisions" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM ai_decision_record 
+        WHERE status = 0 AND is_deleted = 0 
+        ORDER BY priority DESC, create_time ASC
+    </select>
+
+    <!-- 获取待自动执行的决策 -->
+    <select id="selectPendingAutoExecute" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM ai_decision_record 
+        WHERE auto_execute = 1 AND status = 0 AND is_deleted = 0 
+        AND confidence &gt;= #{threshold}
+    </select>
+
+    <!-- ==================== 统计查询 ==================== -->
+
+    <!-- 按类型统计 -->
+    <select id="countByType" resultType="java.util.Map">
+        SELECT decision_type AS type, COUNT(*) AS count
+        FROM ai_decision_record 
+        WHERE is_deleted = 0
+        GROUP BY decision_type
+    </select>
+
+    <!-- 按状态统计 -->
+    <select id="countByStatus" resultType="java.util.Map">
+        SELECT status, COUNT(*) AS count
+        FROM ai_decision_record 
+        WHERE is_deleted = 0
+        GROUP BY status
+    </select>
+
+    <!-- 按优先级统计 -->
+    <select id="countByPriority" resultType="java.util.Map">
+        SELECT priority, COUNT(*) AS count
+        FROM ai_decision_record 
+        WHERE is_deleted = 0
+        GROUP BY priority
+    </select>
+
+    <!-- 今日决策数 -->
+    <select id="countToday" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM ai_decision_record 
+        WHERE is_deleted = 0 AND DATE(create_time) = CURDATE()
+    </select>
+
+    <!-- 平均置信度 -->
+    <select id="avgConfidence" resultType="java.lang.Double">
+        SELECT IFNULL(AVG(confidence), 0) FROM ai_decision_record 
+        WHERE is_deleted = 0 AND confidence IS NOT NULL
+    </select>
+
+</mapper>

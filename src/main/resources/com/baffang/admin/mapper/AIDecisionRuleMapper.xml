@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.admin.mapper.AIDecisionRuleMapper">
+
+    <select id="selectEnabledRules" resultType="com.baffang.common.entity.AIDecisionRule">
+        SELECT * FROM ai_decision_rule WHERE enabled = 1
+    </select>
+
+    <select id="selectByRuleCode" resultType="com.baffang.common.entity.AIDecisionRule">
+        SELECT * FROM ai_decision_rule WHERE rule_code = #{ruleCode}
+    </select>
+
+</mapper>

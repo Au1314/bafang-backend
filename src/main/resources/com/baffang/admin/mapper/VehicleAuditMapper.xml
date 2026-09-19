@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.admin.mapper.VehicleAuditMapper">
+
+    <!-- 查询车主认证审核列表 -->
+    <select id="selectAuditList" resultType="com.baffang.admin.vo.VehicleAuditListVO">
+        SELECT 
+            ar.id,
+            ar.audit_no AS auditNo,
+            ar.business_id AS businessId,
+            ar.applicant_id AS applicantId,
+            u.name AS applicantName,
+            CONCAT(LEFT(u.phone, 3), '****', RIGHT(u.phone, 4)) AS applicantPhone,
+            ca.vehicle_number AS vehicleNumber,
+            ca.car_name AS carName,
+            ca.car_brand AS carBrand,
+            ca.car_type AS carType,
+            ar.current_status AS currentStatus,
+            ar.priority,
+            ar.submit_time AS submitTime,
+            ar.create_time AS createTime
+        FROM audit_record ar
+        LEFT JOIN user_info u ON ar.applicant_id = u.id
+        LEFT JOIN car_auth ca ON ar.business_id = ca.id
+        WHERE ar.audit_type = 1
+        AND ar.is_deleted = 0
+        <if test="query.status != null">
+            AND ar.current_status = #{query.status}
+        </if>
+        <if test="query.priority != null">
+            AND ar.priority = #{query.priority}
+        </if>
+        <if test="query.keyword != null and query.keyword != ''">
+            AND (
+                ca.vehicle_number LIKE CONCAT('%', #{query.keyword}, '%')
+                OR u.name LIKE CONCAT('%', #{query.keyword}, '%')
+                OR u.phone LIKE CONCAT('%', #{query.keyword}, '%')
+            )
+        </if>
+        <if test="query.startTime != null and query.startTime != ''">
+            AND ar.submit_time &gt;= #{query.startTime}
+        </if>
+        <if test="query.endTime != null and query.endTime != ''">
+            AND ar.submit_time &lt;= #{query.endTime}
+        </if>
+        ORDER BY 
+            CASE ar.priority WHEN 3 THEN 0 WHEN 2 THEN 1 WHEN 1 THEN 2 ELSE 3 END,
+            ar.submit_time DESC
+    </select>
+
+    <!-- 查询审核详情 -->
+    <select id="selectAuditDetail" resultType="java.util.Map">
+        SELECT 
+            ar.id,
+            ar.audit_no AS auditNo,
+            ar.business_id AS businessId,
+            ar.applicant_id AS applicantId,
+            ar.current_status AS currentStatus,
+            ar.priority,
+            ar.title,
+            ar.content,
+            ar.attachments,
+            ar.submit_time AS submitTime,
+            ar.finish_time AS finishTime,
+            ar.current_admin_id AS currentAdminId,
+            a.name AS currentAdminName,
+            ar.final_opinion AS finalOpinion,
+            ar.reject_reason AS rejectReason
+        FROM audit_record ar
+        LEFT JOIN admin_info a ON ar.current_admin_id = a.id
+        WHERE ar.id = #{id}
+        AND ar.audit_type = 1
+        AND ar.is_deleted = 0
+    </select>
+
+    <!-- 查询车辆信息 -->
+    <select id="selectVehicleInfo" resultType="java.util.Map">
+        SELECT 
+            id,
+            vehicle_number AS vehicleNumber,
+            car_name AS carName,
+            car_brand AS carBrand,
+            car_type AS carType,
+            vehicle_type AS vehicleType,
+            current_type AS currentType,
+            max_charge_voltage AS maxChargeVoltage,
+            max_charge_current AS maxChargeCurrent,
+            max_charge_power AS maxChargePower,
+            battery_capacity AS batteryCapacity,
+            discharge_power AS dischargePower,
+            `range`,
+            auth_status AS authStatus,
+            create_time AS createTime
+        FROM car_auth
+        WHERE id = #{id}
+        AND is_deleted = 0
+    </select>
+
+    <!-- 查询申请人信息 -->
+    <select id="selectApplicantInfo" resultType="java.util.Map">
+        SELECT 
+            id,
+            name,
+            phone,
+            avatar,
+            auth_vehicle AS authVehicle
+        FROM user_info
+        WHERE id = #{id}
+        AND is_deleted = 0
+    </select>
+
+    <!-- 查询审核日志 -->
+    <select id="selectAuditLogs" resultType="java.util.Map">
+        SELECT 
+            al.id,
+            al.admin_id AS adminId,
+            a.name AS adminName,
+            al.action,
+            al.from_status AS fromStatus,
+            al.to_status AS toStatus,
+            al.opinion,
+            al.create_time AS createTime
+        FROM audit_log al
+        LEFT JOIN admin_info a ON al.admin_id = a.id
+        WHERE al.audit_id = #{auditId}
+        ORDER BY al.create_time ASC
+    </select>
+
+    <!-- 更新车辆认证状态 -->
+    <update id="updateCarAuthStatus">
+        UPDATE car_auth
+        SET auth_status = #{authStatus},
+            update_time = NOW()
+        WHERE id = #{id}
+        AND is_deleted = 0
+    </update>
+
+    <!-- 更新用户认证车辆状态 -->
+    <update id="updateUserAuthVehicle">
+        UPDATE user_info
+        SET auth_vehicle = #{authVehicle},
+            update_time = NOW()
+        WHERE id = #{userId}
+        AND is_deleted = 0
+    </update>
+
+    <!-- 统计各状态数量 -->
+    <select id="selectStatistics" resultType="com.baffang.admin.vo.VehicleAuditStatisticsVO">
+        SELECT 
+            SUM(CASE WHEN current_status = 0 THEN 1 ELSE 0 END) AS pending,
+            SUM(CASE WHEN current_status = 1 THEN 1 ELSE 0 END) AS processing,
+            SUM(CASE WHEN current_status = 2 THEN 1 ELSE 0 END) AS approved,
+            SUM(CASE WHEN current_status = 3 THEN 1 ELSE 0 END) AS rejected,
+            SUM(CASE WHEN current_status = 4 THEN 1 ELSE 0 END) AS needSupplement
+        FROM audit_record
+        WHERE audit_type = 1
+        AND is_deleted = 0
+    </select>
+
+    <!-- 统计今日处理数量 -->
+    <select id="selectTodayProcessedCount" resultType="int">
+        SELECT COUNT(*)
+        FROM audit_record
+        WHERE audit_type = 1
+        AND is_deleted = 0
+        AND finish_time IS NOT NULL
+        AND DATE(finish_time) = CURDATE()
+    </select>
+
+</mapper>

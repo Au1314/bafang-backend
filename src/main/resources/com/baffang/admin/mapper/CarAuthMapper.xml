@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.admin.mapper.CarAuthMapper">
+
+    <!-- 统计已认证车辆数量（car_auth 表中存在且未删除的记录即为已认证） -->
+    <select id="countAuthenticatedCars" resultType="int">
+        SELECT COUNT(*) FROM car_auth 
+        WHERE is_deleted = 0
+    </select>
+
+    <!-- 统计车辆认证总数 -->
+    <select id="countTotal" resultType="int">
+        SELECT COUNT(*) FROM car_auth 
+        WHERE is_deleted = 0
+    </select>
+
+</mapper>

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.user.mapper.UserForumPostFavoriteMapper">
+
+    <select id="checkUserFavoritePost" parameterType="map" resultType="Integer">
+        SELECT COUNT(*) 
+        FROM post_favorite
+        WHERE user_id = #{userId} AND post_id = #{postId} AND is_deleted = 0;
+    </select>
+
+    <insert id="insertPostFavorite" parameterType="com.baffang.common.entity.PostFavorite" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO post_favorite (
+            user_id,
+            post_id,
+            create_time,
+            is_deleted
+        ) VALUES (
+            #{userId},
+            #{postId},
+            NOW(),
+            0
+        )
+    </insert>
+
+    <update id="increasePostCollectCount" parameterType="Integer">
+        UPDATE forum_post
+        SET collect_count = collect_count + 1
+        WHERE id = #{postId} AND is_deleted = 0;
+    </update>
+    
+    <update id="decreasePostCollectCount" parameterType="Integer">
+        UPDATE forum_post
+        SET collect_count = collect_count - 1
+        WHERE id = #{postId} AND is_deleted = 0;
+    </update>
+    
+    <update id="cancelFavoritePost" parameterType="map">
+        UPDATE post_favorite
+        SET is_deleted = 1
+        WHERE user_id = #{userId} AND post_id = #{postId} AND is_deleted = 0;
+    </update>
+    
+    <select id="getUserFavoritePosts" resultType="com.baffang.user.vo.ForumPostListVO">
+        SELECT 
+            fp.id AS postId,
+            fp.user_id AS userId,
+            fp.title,
+            fp.content,
+            DATE_FORMAT(fp.create_time, '%Y-%m-%d %H:%i:%s') AS createTime,
+            fp.like_count AS likeCount,
+            fp.collect_count AS collectCount,
+            ui.name AS publisherName,
+            ui.avatar AS publisherAvatar
+        FROM post_favorite pf
+        JOIN forum_post fp ON pf.post_id = fp.id
+        JOIN user_info ui ON fp.user_id = ui.id
+        WHERE pf.user_id = #{userId} AND pf.is_deleted = 0 AND fp.is_deleted = 0 AND ui.is_deleted = 0
+        ORDER BY pf.create_time DESC
+    </select>
+
+</mapper>

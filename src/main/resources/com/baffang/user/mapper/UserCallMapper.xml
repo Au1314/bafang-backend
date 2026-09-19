@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.user.mapper.UserCallMapper">
+
+    <!-- 插入V2V呼叫记录 -->
+    <insert id="insertV2VCall" parameterType="com.baffang.common.entity.VToV">
+        INSERT INTO v_to_v (
+            request_user_id, 
+            response_user_id, 
+            call_range, 
+            call_time, 
+            call_position, 
+            target_position, 
+            call_longitude, 
+            call_latitude, 
+            target_longitude, 
+            target_latitude, 
+            status, 
+            create_time, 
+            update_time
+        ) VALUES (
+            #{requestUserId}, 
+            #{responseUserId}, 
+            #{callRange}, 
+            #{callTime}, 
+            #{callPosition}, 
+            #{targetPosition}, 
+            #{callLongitude}, 
+            #{callLatitude}, 
+            #{targetLongitude}, 
+            #{targetLatitude}, 
+            #{status}, 
+            #{createTime}, 
+            #{updateTime}
+        )
+    </insert>
+    
+    <!-- 查询用户活跃呼叫数量 -->
+    <select id="countActiveCallsByUserId" parameterType="java.lang.Integer" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM v_to_v 
+        WHERE request_user_id = #{requestUserId} 
+        AND status NOT IN (2, 3)
+    </select>
+    
+    <!-- 将用户的待响应（0）和已响应（1）的呼叫设为已取消（3） -->
+    <update id="updateCallStatusToCanceled" parameterType="java.lang.Integer">
+        UPDATE v_to_v 
+        SET status = 3, update_time = NOW() 
+        WHERE request_user_id = #{requestUserId} 
+        AND status IN (0, 1)
+    </update>
+    
+    <!-- 查询指定经纬度范围内的待响应呼叫 -->
+    <select id="selectPendingCallsByGeoRange" resultType="com.baffang.user.vo.CallResponseVO">
+        SELECT 
+            v.id AS id, 
+            v.request_user_id AS requestUserId, 
+            u.name AS requestUserName, 
+            v.call_time AS callTime, 
+            v.call_position AS callPosition, 
+            v.call_longitude AS callLongitude, 
+            v.call_latitude AS callLatitude
+        FROM v_to_v v
+        LEFT JOIN user_info u ON v.request_user_id = u.id
+        WHERE v.status = 0
+        <if test="minLng != null and maxLng != null">
+            AND v.call_longitude BETWEEN #{minLng} AND #{maxLng}
+        </if>
+        <if test="minLat != null and maxLat != null">
+            AND v.call_latitude BETWEEN #{minLat} AND #{maxLat}
+        </if>
+    </select>
+    
+    <!-- 查询所有待响应呼叫的完整信息 -->
+    <select id="selectAllPendingCalls" resultType="com.baffang.common.entity.VToV">
+        SELECT 
+            v.id, 
+            v.request_user_id, 
+            v.response_user_id, 
+            v.call_range, 
+            v.call_time, 
+            v.call_position, 
+            v.target_position, 
+            v.call_longitude, 
+            v.call_latitude, 
+            v.target_longitude, 
+            v.target_latitude, 
+            v.status, 
+            v.create_time, 
+            v.update_time
+        FROM v_to_v v
+        WHERE v.status = 0
+    </select>
+    
+    <!-- 根据ID查询呼叫记录 -->
+    <select id="selectCallById" parameterType="java.lang.Integer" resultType="com.baffang.common.entity.VToV">
+        SELECT 
+            v.id, 
+            v.request_user_id, 
+            v.response_user_id, 
+            v.call_range, 
+            v.call_time, 
+            v.call_position, 
+            v.target_position, 
+            v.call_longitude, 
+            v.call_latitude, 
+            v.target_longitude, 
+            v.target_latitude, 
+            v.status, 
+            v.create_time, 
+            v.update_time
+        FROM v_to_v v
+        WHERE v.id = #{callId}
+    </select>
+    
+    <!-- 更新呼叫响应信息 -->
+    <update id="updateCallResponse" parameterType="com.baffang.common.entity.VToV">
+        UPDATE v_to_v 
+        SET 
+            response_user_id = #{responseUserId}, 
+            target_position = #{targetPosition}, 
+            target_longitude = #{targetLongitude}, 
+            target_latitude = #{targetLatitude}, 
+            status = #{status}, 
+            update_time = NOW() 
+        WHERE id = #{id}
+    </update>
+
+    <!-- 查询用户的V2V呼叫记录 -->
+    <select id="selectCallRecords" resultType="com.baffang.user.vo.CallListVO">
+        SELECT 
+            v.id AS callId,
+            CASE 
+                WHEN v.request_user_id = #{userId} THEN 0
+                ELSE 1
+            END AS role,
+            v.call_range AS callRange,
+            v.call_time AS callTime,
+            v.status AS status,
+            v.request_user_id AS callUserId,
+            u1.name AS callUserName,
+            v.response_user_id AS responseUserId,
+            u2.name AS responseUserName,
+            v.call_position AS callPosition,
+            v.target_position AS targetPosition,
+            v.target_longitude AS targetLongitude,
+            v.target_latitude AS targetLatitude,
+            v.call_longitude AS callLongitude,
+            v.call_latitude AS callLatitude
+        FROM v_to_v v
+        LEFT JOIN user_info u1 ON v.request_user_id = u1.id
+        LEFT JOIN user_info u2 ON v.response_user_id = u2.id
+        WHERE 
+            (v.request_user_id = #{userId} OR v.response_user_id = #{userId})
+            <if test="role != null">
+                AND (CASE 
+                        WHEN v.request_user_id = #{userId} THEN 0
+                        ELSE 1
+                    END) = #{role}
+            </if>
+            <if test="status != null">
+                AND v.status = #{status}
+            </if>
+        ORDER BY v.call_time DESC
+    </select>
+
+    <!-- 插入紧急呼叫记录 -->
+    <insert id="insertEmergencyCall" parameterType="com.baffang.common.entity.EmergencyCall">
+        INSERT INTO emergency_call (
+            request_user_id, 
+            type, 
+            response_admin_id, 
+            call_range, 
+            call_time, 
+            call_position, 
+            call_longitude, 
+            call_latitude, 
+            target_position, 
+            target_longitude, 
+            target_latitude, 
+            status, 
+            create_time, 
+            update_time
+        ) VALUES (
+            #{requestUserId}, 
+            #{type}, 
+            #{responseAdminId}, 
+            #{callRange}, 
+            #{callTime}, 
+            #{callPosition}, 
+            #{callLongitude}, 
+            #{callLatitude}, 
+            #{targetPosition}, 
+            #{targetLongitude}, 
+            #{targetLatitude}, 
+            #{status}, 
+            #{createTime}, 
+            #{updateTime}
+        )
+    </insert>
+    
+    <!-- 查询用户活跃紧急呼叫数量 -->
+    <select id="countActiveEmergencyCallsByUserId" parameterType="java.lang.Integer" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM emergency_call 
+        WHERE request_user_id = #{requestUserId} 
+        AND status NOT IN (2, 3)
+    </select>
+    
+    <!-- 将用户所有待响应（0）和已响应（1）的紧急呼叫设为已取消（3） -->
+    <update id="updateEmergencyCallStatusToCanceled" parameterType="java.lang.Integer">
+        UPDATE emergency_call 
+        SET status = 3, update_time = NOW() 
+        WHERE request_user_id = #{requestUserId} 
+        AND status IN (0, 1)
+    </update>
+    
+    <!-- 查询用户的紧急呼叫记录 -->
+    <select id="selectEmergencyCallRecords" resultType="com.baffang.user.vo.EmergencyCallListVO">
+        SELECT 
+            e.id AS callId, 
+            e.type AS callType, 
+            e.call_time AS callTime, 
+            e.status AS status, 
+            e.response_admin_id AS responserId, 
+            a.name AS responserName, 
+            e.call_position AS callPosition, 
+            e.target_position AS targetPosition, 
+            e.target_longitude AS targetLongitude, 
+            e.target_latitude AS targetLatitude, 
+            e.call_longitude AS callLongitude, 
+            e.call_latitude AS callLatitude
+        FROM emergency_call e
+        LEFT JOIN admin_info a ON e.response_admin_id = a.id
+        WHERE e.request_user_id = #{userId}
+        <if test="callType != null">
+            AND e.type = #{callType}
+        </if>
+        <if test="status != null">
+            AND e.status = #{status}
+        </if>
+        ORDER BY e.call_time DESC
+    </select>
+
+    <!-- 查询单个紧急呼叫进度信息 -->
+    <select id="selectEmergencyCallProgress" resultType="com.baffang.user.vo.EmergencyCallListVO">
+        SELECT 
+            e.id AS callId, 
+            e.type AS callType, 
+            e.call_time AS callTime, 
+            e.status AS status, 
+            e.response_admin_id AS responserId, 
+            a.name AS responserName, 
+            e.call_position AS callPosition, 
+            e.target_position AS targetPosition, 
+            e.target_longitude AS targetLongitude, 
+            e.target_latitude AS targetLatitude, 
+            e.call_longitude AS callLongitude, 
+            e.call_latitude AS callLatitude
+        FROM emergency_call e
+        LEFT JOIN admin_info a ON e.response_admin_id = a.id
+        WHERE (
+            (#{userId} IS NOT NULL AND e.request_user_id = #{userId})
+            OR (#{adminId} IS NOT NULL AND e.response_admin_id = #{adminId})
+        )
+        AND e.status NOT IN (2, 3) -- 只查询活跃的呼叫（非已完成、非已取消）
+        ORDER BY e.call_time DESC
+        LIMIT 1 -- 取最新的一条记录
+    </select>
+
+</mapper>

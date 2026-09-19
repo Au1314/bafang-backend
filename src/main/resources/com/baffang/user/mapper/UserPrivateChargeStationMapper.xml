@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.user.mapper.UserPrivateChargeStationMapper">
+
+    <!-- 新增私桩信息 -->
+    <insert id="insert" parameterType="com.baffang.common.entity.PrivateChargeStation" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO private_charge_station (
+            name, 
+            type, 
+            status, 
+            location_name, 
+            longitude, 
+            latitude, 
+            current_type, 
+            max_charge_voltage, 
+            max_charge_current, 
+            max_charge_power, 
+            price, 
+            max_vehicles, 
+            current_vehicles, 
+            open_status, 
+            owner_id, 
+            auth_status, 
+            image, 
+            description, 
+            is_deleted, 
+            create_time, 
+            update_time
+        ) VALUES (
+            #{name}, 
+            #{type}, 
+            #{status}, 
+            #{locationName}, 
+            #{longitude}, 
+            #{latitude}, 
+            #{currentType}, 
+            #{maxChargeVoltage}, 
+            #{maxChargeCurrent}, 
+            #{maxChargePower}, 
+            #{price}, 
+            #{maxVehicles}, 
+            #{currentVehicles}, 
+            #{openStatus}, 
+            #{ownerId}, 
+            #{authStatus}, 
+            #{image}, 
+            #{description}, 
+            #{isDeleted}, 
+            #{createTime}, 
+            #{updateTime}
+        )
+    </insert>
+
+    <!-- 根据用户ID查询私桩列表 -->
+    <select id="selectPrivateStationListByOwnerId" parameterType="java.lang.Integer" resultType="com.baffang.user.vo.PrivateStationListVO">
+        SELECT
+            id,
+            name,
+            location_name AS locationName,
+            auth_status AS authStatus,
+            open_status AS openStatus,
+            rating
+        FROM
+            private_charge_station
+        WHERE
+            owner_id = #{ownerId}
+            AND is_deleted = 0
+        ORDER BY
+            create_time DESC
+    </select>
+
+    <!-- 解绑私桩（软删除） -->
+    <update id="unbindPrivateStation" parameterType="java.util.Map">
+        UPDATE private_charge_station
+        SET
+            is_deleted = 1,
+            update_time = CURRENT_TIMESTAMP
+        WHERE
+            id = #{id}
+            AND owner_id = #{ownerId}
+            AND is_deleted = 0
+    </update>
+    
+    <!-- 更新私桩固定价格 -->
+    <update id="updatePrivateStationPrice" parameterType="java.util.Map">
+        UPDATE private_charge_station
+        SET
+            price = #{price},
+            update_time = CURRENT_TIMESTAMP
+        WHERE
+            id = #{id}
+            AND owner_id = #{ownerId}
+            AND is_deleted = 0
+    </update>
+
+    <!-- 根据用户ID和私桩ID查询私桩时间配置 -->
+    <select id="selectPrivateStationTimeConfigByOwnerIdAndStationId" resultType="com.baffang.user.vo.PrivateStationTimeConfigVO">
+        SELECT
+            id AS stationId,
+            open_status AS openStatus,
+            open_time AS openTime,
+            close_time AS closeTime
+        FROM
+            private_charge_station
+        WHERE
+            owner_id = #{ownerId}
+            AND id = #{id}
+            AND is_deleted = 0
+    </select>
+
+    <!-- 更新私桩启停时间 -->
+    <update id="updatePrivateStationTimeConfig" parameterType="java.util.Map">
+        UPDATE private_charge_station
+        SET
+            open_time = #{openTime},
+            close_time = #{closeTime},
+            update_time = CURRENT_TIMESTAMP
+        WHERE
+            id = #{id}
+            AND owner_id = #{ownerId}
+            AND is_deleted = 0
+    </update>
+    
+    <!-- 更新私桩状态（手动开关） -->
+    <update id="updatePrivateStationStatus" parameterType="java.util.Map">
+        UPDATE private_charge_station
+        SET
+            open_status = #{openStatus},
+            update_time = CURRENT_TIMESTAMP
+        WHERE
+            id = #{id}
+            AND owner_id = #{ownerId}
+            AND is_deleted = 0
+    </update>
+
+    <!-- 更新私桩定价类型 -->
+    <update id="updatePriceType" parameterType="java.util.Map">
+        UPDATE private_charge_station
+        SET
+            price_type = #{priceType},
+            update_time = CURRENT_TIMESTAMP
+        WHERE
+            id = #{id}
+            AND owner_id = #{ownerId}
+            AND is_deleted = 0
+    </update>
+
+    <!-- 根据私桩ID查询私桩信息 -->
+    <select id="selectPrivateStationById" parameterType="java.lang.Integer" resultType="com.baffang.common.entity.PrivateChargeStation">
+        SELECT
+            *
+        FROM
+            private_charge_station
+        WHERE
+            id = #{id}
+            AND is_deleted = 0
+    </select>
+
+    <!-- 更新私桩信息并重置认证状态 -->
+    <update id="updatePrivateStationInfo" parameterType="java.util.Map">
+        UPDATE private_charge_station
+        SET
+            <if test="dto.name != null">name = #{dto.name},</if>
+            <if test="dto.locationName != null">location_name = #{dto.locationName},</if>
+            <if test="dto.longitude != null">longitude = #{dto.longitude},</if>
+            <if test="dto.latitude != null">latitude = #{dto.latitude},</if>
+            <if test="dto.price != null">price = #{dto.price},</if>
+            <if test="dto.type != null">type = #{dto.type},</if>
+            <if test="dto.currentType != null">current_type = #{dto.currentType},</if>
+            <if test="dto.maxChargeVoltage != null">max_charge_voltage = #{dto.maxChargeVoltage},</if>
+            <if test="dto.maxChargeCurrent != null">max_charge_current = #{dto.maxChargeCurrent},</if>
+            <if test="dto.maxChargePower != null">max_charge_power = #{dto.maxChargePower},</if>
+            <if test="dto.maxVehicles != null">max_vehicles = #{dto.maxVehicles},</if>
+            <if test="dto.image != null">image = #{dto.image},</if>
+            <if test="dto.description != null">description = #{dto.description},</if>
+            auth_status = 0, <!-- 重置认证状态为未认证 -->
+            update_time = CURRENT_TIMESTAMP
+        WHERE
+            id = #{id}
+            AND owner_id = #{ownerId}
+            AND is_deleted = 0
+    </update>
+    
+    <!-- 根据经纬度范围和关键词查询私桩 -->
+    <select id="selectPrivateStationsByGeoRange" resultType="com.baffang.user.vo.NaviPrivateStationVO">
+        SELECT
+            id,
+            name,
+            location_name AS locationName,
+            longitude,
+            latitude,
+            max_vehicles AS maxVehicles,
+            current_vehicles AS currentVehicles,
+            image,
+            price
+        FROM
+            private_charge_station
+        WHERE
+            is_deleted = 0
+            <if test="keyword != null and keyword != ''">
+                AND (name LIKE CONCAT('%', #{keyword}, '%') OR location_name LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="minLng != null and maxLng != null">
+                AND longitude BETWEEN #{minLng} AND #{maxLng}
+            </if>
+            <if test="minLat != null and maxLat != null">
+                AND latitude BETWEEN #{minLat} AND #{maxLat}
+            </if>
+    </select>
+    
+    <!-- 更新私桩评分 -->
+    <update id="updatePrivateStationRating">
+        UPDATE private_charge_station
+        SET rating = #{rating}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND is_deleted = 0
+    </update>
+</mapper>

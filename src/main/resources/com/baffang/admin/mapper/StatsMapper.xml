@@ -1,0 +1,497 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.admin.mapper.StatsMapper">
+
+    <!-- ==================== 平台统计 ==================== -->
+    
+    <!-- 用户总数 -->
+    <select id="countTotalUsers" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM user_info WHERE is_deleted = 0
+    </select>
+    
+    <!-- 今日新增用户 -->
+    <select id="countTodayNewUsers" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM user_info 
+        WHERE is_deleted = 0 AND DATE(create_time) = CURDATE()
+    </select>
+    
+    <!-- 充电站总数（私桩） -->
+    <select id="countTotalStations" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM private_charge_station WHERE is_deleted = 0
+    </select>
+    
+    <!-- 充电桩总数（公桩数量） -->
+    <select id="countTotalPiles" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM public_charge_station WHERE is_deleted = 0
+    </select>
+    
+    <!-- 订单总数 -->
+    <select id="countTotalOrders" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM `order` WHERE is_deleted = 0
+    </select>
+    
+    <!-- 今日订单数 -->
+    <select id="countTodayOrders" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM `order` 
+        WHERE is_deleted = 0 AND DATE(create_time) = CURDATE()
+    </select>
+    
+    <!-- 总收入（已完成订单） -->
+    <select id="sumTotalRevenue" resultType="java.lang.Double">
+        SELECT COALESCE(SUM(actual_amount), 0) 
+        FROM `order` 
+        WHERE status = 3 AND is_deleted = 0
+    </select>
+    
+    <!-- 今日收入 -->
+    <select id="sumTodayRevenue" resultType="java.lang.Double">
+        SELECT COALESCE(SUM(actual_amount), 0) 
+        FROM `order` 
+        WHERE status = 3 AND is_deleted = 0 AND DATE(create_time) = CURDATE()
+    </select>
+    
+    <!-- 总充电量(kWh) -->
+    <select id="sumTotalChargeAmount" resultType="java.lang.Double">
+        SELECT COALESCE(SUM(electricity), 0) 
+        FROM `order` 
+        WHERE status = 3 AND is_deleted = 0
+    </select>
+    
+    <!-- 今日充电量 -->
+    <select id="sumTodayChargeAmount" resultType="java.lang.Double">
+        SELECT COALESCE(SUM(electricity), 0) 
+        FROM `order` 
+        WHERE status = 3 AND is_deleted = 0 AND DATE(create_time) = CURDATE()
+    </select>
+
+    <!-- ==================== 充电站分布 ==================== -->
+    
+    <!-- 按状态统计私桩 -->
+    <select id="countStationsByStatus" resultType="java.util.Map">
+        SELECT 
+            status,
+            CASE status 
+                WHEN 0 THEN '空闲'
+                WHEN 1 THEN '已预约'
+                WHEN 2 THEN '充电中'
+                WHEN 3 THEN '异常'
+                ELSE '未知'
+            END as statusName,
+            COUNT(*) as count
+        FROM private_charge_station 
+        WHERE is_deleted = 0 
+        GROUP BY status
+    </select>
+    
+    <!-- 按认证状态统计私桩 -->
+    <select id="countStationsByRegion" resultType="java.util.Map">
+        SELECT 
+            auth_status as authStatus,
+            CASE auth_status 
+                WHEN 0 THEN '未认证'
+                WHEN 1 THEN '审核中'
+                WHEN 2 THEN '已认证'
+                WHEN 3 THEN '认证失败'
+                ELSE '未知'
+            END as authStatusName,
+            COUNT(*) as count
+        FROM private_charge_station 
+        WHERE is_deleted = 0 
+        GROUP BY auth_status
+    </select>
+    
+    <!-- 按类型统计私桩 -->
+    <select id="countStationsByOperator" resultType="java.util.Map">
+        SELECT 
+            type,
+            CASE type 
+                WHEN 0 THEN '普通私桩'
+                WHEN 1 THEN '专业私桩'
+                ELSE '未知'
+            END as typeName,
+            COUNT(*) as count
+        FROM private_charge_station 
+        WHERE is_deleted = 0 
+        GROUP BY type
+    </select>
+
+    <!-- ==================== 车辆认证统计 ==================== -->
+    
+    <!-- 按状态统计车辆认证 -->
+    <select id="countVehicleAuditByStatus" resultType="java.util.Map">
+        SELECT 
+            auth_status as status,
+            CASE auth_status 
+                WHEN 0 THEN '未认证'
+                WHEN 1 THEN '审核中'
+                WHEN 2 THEN '已认证'
+                WHEN 3 THEN '认证失败'
+                ELSE '未知'
+            END as statusName,
+            COUNT(*) as count
+        FROM car_auth 
+        WHERE is_deleted = 0 
+        GROUP BY auth_status
+    </select>
+    
+    <!-- 今日处理的车辆认证数 -->
+    <select id="countTodayProcessedVehicleAudit" resultType="java.lang.Integer">
+        SELECT COUNT(*) 
+        FROM car_auth 
+        WHERE is_deleted = 0 
+        AND auth_status IN (2, 3)
+        AND DATE(update_time) = CURDATE()
+    </select>
+    
+    <!-- 车辆认证平均处理时长(小时) - 从审核记录表统计 -->
+    <select id="avgVehicleAuditProcessTime" resultType="java.lang.Double">
+        SELECT AVG(TIMESTAMPDIFF(HOUR, submit_time, finish_time))
+        FROM audit_record 
+        WHERE audit_type = 1 
+        AND is_deleted = 0 
+        AND finish_time IS NOT NULL
+        AND submit_time IS NOT NULL
+    </select>
+
+    <!-- ==================== 投诉统计（使用审核记录表 audit_type=2） ==================== -->
+    
+    <!-- 按状态统计投诉 -->
+    <select id="countComplaintByStatus" resultType="java.util.Map">
+        SELECT 
+            current_status as status,
+            CASE current_status 
+                WHEN 0 THEN '待审核'
+                WHEN 1 THEN '审核中'
+                WHEN 2 THEN '已通过'
+                WHEN 3 THEN '已拒绝'
+                WHEN 4 THEN '需补充材料'
+                WHEN 5 THEN '已撤回'
+                ELSE '未知'
+            END as statusName,
+            COUNT(*) as count
+        FROM audit_record 
+        WHERE audit_type = 2 AND is_deleted = 0 
+        GROUP BY current_status
+    </select>
+    
+    <!-- 按类型统计审核（投诉+故障等） -->
+    <select id="countComplaintByType" resultType="java.util.Map">
+        SELECT 
+            audit_type as type,
+            CASE audit_type 
+                WHEN 2 THEN '充电桩投诉'
+                WHEN 3 THEN '充电桩故障'
+                WHEN 4 THEN '评论举报'
+                WHEN 5 THEN '帖子举报'
+                WHEN 6 THEN '交易申诉'
+                ELSE '其他'
+            END as typeName,
+            COUNT(*) as count
+        FROM audit_record 
+        WHERE audit_type IN (2, 3, 4, 5, 6) AND is_deleted = 0 
+        GROUP BY audit_type
+    </select>
+    
+    <!-- 今日新增投诉/举报 -->
+    <select id="countTodayNewComplaints" resultType="java.lang.Integer">
+        SELECT COUNT(*) 
+        FROM audit_record 
+        WHERE audit_type IN (2, 3, 4, 5, 6) 
+        AND is_deleted = 0 
+        AND DATE(create_time) = CURDATE()
+    </select>
+    
+    <!-- 投诉平均处理时长(小时) -->
+    <select id="avgComplaintProcessTime" resultType="java.lang.Double">
+        SELECT AVG(TIMESTAMPDIFF(HOUR, submit_time, finish_time))
+        FROM audit_record 
+        WHERE audit_type IN (2, 3, 4, 5, 6)
+        AND is_deleted = 0 
+        AND current_status IN (2, 3)
+        AND finish_time IS NOT NULL
+    </select>
+
+    <!-- ==================== 审核记录统计 ==================== -->
+    
+    <!-- 按类型和状态统计审核记录 -->
+    <select id="countAuditRecordByTypeAndStatus" resultType="java.util.Map">
+        SELECT 
+            audit_type as type,
+            CASE audit_type 
+                WHEN 0 THEN '私桩认证'
+                WHEN 1 THEN '车主认证'
+                WHEN 2 THEN '充电桩投诉'
+                WHEN 3 THEN '充电桩故障'
+                WHEN 4 THEN '评论举报'
+                WHEN 5 THEN '帖子举报'
+                WHEN 6 THEN '交易申诉'
+                ELSE '其他'
+            END as typeName,
+            current_status as status,
+            CASE current_status 
+                WHEN 0 THEN '待审核'
+                WHEN 1 THEN '审核中'
+                WHEN 2 THEN '已通过'
+                WHEN 3 THEN '已拒绝'
+                WHEN 4 THEN '需补充材料'
+                WHEN 5 THEN '已撤回'
+                ELSE '未知'
+            END as statusName,
+            COUNT(*) as count
+        FROM audit_record 
+        WHERE is_deleted = 0 
+        GROUP BY audit_type, current_status
+        ORDER BY audit_type, current_status
+    </select>
+    
+    <!-- 待处理审核数(所有类型) -->
+    <select id="countPendingAuditRecords" resultType="java.lang.Integer">
+        SELECT COUNT(*) 
+        FROM audit_record 
+        WHERE is_deleted = 0 
+        AND current_status IN (0, 1)
+    </select>
+
+    <!-- ==================== 论坛统计 ==================== -->
+    
+    <!-- 帖子总数 -->
+    <select id="countTotalPosts" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM forum_post WHERE is_deleted = 0
+    </select>
+    
+    <!-- 今日新帖数 -->
+    <select id="countTodayPosts" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM forum_post 
+        WHERE is_deleted = 0 AND DATE(create_time) = CURDATE()
+    </select>
+    
+    <!-- 评论/回复总数 -->
+    <select id="countTotalComments" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM post_reply WHERE is_deleted = 0
+    </select>
+    
+    <!-- 今日评论数 -->
+    <select id="countTodayComments" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM post_reply 
+        WHERE is_deleted = 0 AND DATE(create_time) = CURDATE()
+    </select>
+    
+    <!-- 帖子互动统计 -->
+    <select id="countPostsByCategory" resultType="java.util.Map">
+        SELECT 
+            '置顶帖' as category, COUNT(*) as count 
+        FROM forum_post WHERE is_deleted = 0 AND is_top = 1
+        UNION ALL
+        SELECT 
+            '精华帖' as category, COUNT(*) as count 
+        FROM forum_post WHERE is_deleted = 0 AND is_essence = 1
+        UNION ALL
+        SELECT 
+            '普通帖' as category, COUNT(*) as count 
+        FROM forum_post WHERE is_deleted = 0 AND is_top = 0 AND is_essence = 0
+    </select>
+
+    <!-- ==================== 紧急呼叫统计 ==================== -->
+    
+    <!-- 按状态统计紧急呼叫 -->
+    <select id="countEmergencyByStatus" resultType="java.util.Map">
+        SELECT 
+            status,
+            CASE status 
+                WHEN 0 THEN '待响应'
+                WHEN 1 THEN '已响应'
+                WHEN 2 THEN '已完成'
+                WHEN 3 THEN '已取消'
+                ELSE '未知'
+            END as statusName,
+            COUNT(*) as count
+        FROM emergency_call 
+        GROUP BY status
+    </select>
+    
+    <!-- 今日紧急呼叫数 -->
+    <select id="countTodayEmergencyCalls" resultType="java.lang.Integer">
+        SELECT COUNT(*) 
+        FROM emergency_call 
+        WHERE DATE(create_time) = CURDATE()
+    </select>
+    
+    <!-- 平均响应时间(分钟) -->
+    <select id="avgEmergencyResponseTime" resultType="java.lang.Double">
+        SELECT AVG(TIMESTAMPDIFF(MINUTE, call_time, update_time))
+        FROM emergency_call 
+        WHERE status IN (1, 2)
+    </select>
+    
+    <!-- 按类型统计紧急呼叫 -->
+    <select id="avgEmergencyHandleTime" resultType="java.lang.Double">
+        SELECT 
+            type,
+            CASE type 
+                WHEN 0 THEN '呼叫拖车'
+                WHEN 1 THEN '呼叫充电桩'
+                WHEN 2 THEN '其他呼叫'
+                ELSE '未知'
+            END as typeName,
+            COUNT(*) as count
+        FROM emergency_call 
+        GROUP BY type
+    </select>
+
+    <!-- ==================== 客服/对话统计 ==================== -->
+    
+    <!-- 今日会话数 -->
+    <select id="countTodayCsSessions" resultType="java.lang.Integer">
+        SELECT COUNT(*) 
+        FROM conversation 
+        WHERE DATE(create_time) = CURDATE() AND is_deleted = 0
+    </select>
+    
+    <!-- 待处理/进行中会话数 -->
+    <select id="countPendingCsSessions" resultType="java.lang.Integer">
+        SELECT COUNT(*) 
+        FROM conversation 
+        WHERE status = 1 AND is_deleted = 0
+    </select>
+    
+    <!-- 今日消息数 -->
+    <select id="countTodayCsMessages" resultType="java.lang.Integer">
+        SELECT COUNT(*) 
+        FROM conversation_message 
+        WHERE DATE(send_time) = CURDATE() AND is_deleted = 0
+    </select>
+    
+    <!-- 客服对话平均响应时间（暂无字段，返回null） -->
+    <select id="avgCsResponseTime" resultType="java.lang.Double">
+        SELECT NULL
+    </select>
+    
+    <!-- 管理员工作量统计 -->
+    <select id="countCsWorkloadByAdmin" resultType="java.util.Map">
+        SELECT 
+            cp.participant_id as adminId,
+            ai.name as adminName,
+            COUNT(DISTINCT cp.conversation_id) as sessionCount
+        FROM conversation_participant cp
+        LEFT JOIN admin_info ai ON cp.participant_id = ai.id
+        WHERE cp.participant_type = 1 
+        AND cp.is_deleted = 0
+        AND DATE(cp.join_time) >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+        GROUP BY cp.participant_id, ai.name
+        ORDER BY sessionCount DESC
+    </select>
+
+    <!-- ==================== 额外统计 ==================== -->
+    
+    <!-- V2V 呼叫统计 -->
+    <select id="countV2VByStatus" resultType="java.util.Map">
+        SELECT 
+            status,
+            CASE status 
+                WHEN 0 THEN '待响应'
+                WHEN 1 THEN '已响应'
+                WHEN 2 THEN '已完成'
+                WHEN 3 THEN '已取消'
+                ELSE '未知'
+            END as statusName,
+            COUNT(*) as count
+        FROM v_to_v 
+        GROUP BY status
+    </select>
+    
+    <!-- 今日V2V呼叫数 -->
+    <select id="countTodayV2VCalls" resultType="java.lang.Integer">
+        SELECT COUNT(*) 
+        FROM v_to_v 
+        WHERE DATE(create_time) = CURDATE()
+    </select>
+    
+    <!-- 订单类型分布 -->
+    <select id="countOrdersByType" resultType="java.util.Map">
+        SELECT 
+            order_type as type,
+            CASE order_type 
+                WHEN 0 THEN '公桩充电'
+                WHEN 1 THEN '私桩充电'
+                WHEN 2 THEN 'V2V充电'
+                ELSE '未知'
+            END as typeName,
+            COUNT(*) as count,
+            COALESCE(SUM(actual_amount), 0) as totalAmount
+        FROM `order` 
+        WHERE is_deleted = 0 
+        GROUP BY order_type
+    </select>
+    
+    <!-- 订单状态分布 -->
+    <select id="countOrdersByStatus" resultType="java.util.Map">
+        SELECT 
+            status,
+            CASE status 
+                WHEN 0 THEN '待支付'
+                WHEN 1 THEN '充电中'
+                WHEN 2 THEN '充电完成待支付'
+                WHEN 3 THEN '已完成'
+                WHEN 4 THEN '已取消'
+                WHEN 5 THEN '已退款'
+                ELSE '未知'
+            END as statusName,
+            COUNT(*) as count
+        FROM `order` 
+        WHERE is_deleted = 0 
+        GROUP BY status
+    </select>
+    
+    <!-- 私桩预约统计 -->
+    <select id="countReserveByStatus" resultType="java.util.Map">
+        SELECT 
+            status,
+            CASE status 
+                WHEN 0 THEN '待确认'
+                WHEN 1 THEN '已确认'
+                WHEN 2 THEN '已取消'
+                ELSE '未知'
+            END as statusName,
+            COUNT(*) as count
+        FROM private_station_reserve 
+        GROUP BY status
+    </select>
+    
+    <!-- 充电桩评分统计 -->
+    <select id="getChargeRateStats" resultType="java.util.Map">
+        SELECT 
+            type,
+            CASE type 
+                WHEN 0 THEN '公桩评价'
+                WHEN 1 THEN '私桩评价'
+                ELSE '未知'
+            END as typeName,
+            COUNT(*) as count,
+            ROUND(AVG(score), 2) as avgScore
+        FROM charge_rate 
+        WHERE is_deleted = 0 
+        GROUP BY type
+    </select>
+    
+    <!-- 管理员统计 -->
+    <select id="countAdminsByType" resultType="java.util.Map">
+        SELECT 
+            type,
+            CASE type 
+                WHEN 0 THEN '超级管理员'
+                WHEN 1 THEN '普通管理员'
+                WHEN 2 THEN '审核员'
+                WHEN 3 THEN '客服'
+                WHEN 4 THEN '紧急响应人员'
+                WHEN 5 THEN '论坛管理员'
+                WHEN 10 THEN '未分配身份'
+                ELSE '未知'
+            END as typeName,
+            COUNT(*) as count
+        FROM admin_info 
+        WHERE is_deleted = 0 
+        GROUP BY type
+    </select>
+
+</mapper>

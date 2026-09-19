@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.user.mapper.UserPublicChargeStationMapper">
+    
+    <!-- 根据公桩ID查询公桩信息 -->
+    <select id="selectPublicStationById" resultType="com.baffang.common.entity.PublicChargeStation">
+        SELECT id, name, location_name as locationName, longitude, latitude, current_type as currentType,
+               price, max_charge_voltage as maxChargeVoltage, max_charge_current as maxChargeCurrent,
+               max_charge_power as maxChargePower, max_vehicles as maxVehicles, current_vehicles as currentVehicles,
+               open_status as openStatus, open_time as openTime, close_time as closeTime, provider, image,
+               description, rating, update_time as updateTime
+        FROM public_charge_station
+        WHERE id = #{id}
+    </select>
+    
+    <!-- 更新公桩评分 -->
+    <update id="updatePublicStationRating">
+        UPDATE public_charge_station
+        SET rating = #{rating}, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+    
+    <!-- 插入单个公桩信息 -->
+    <insert id="insertPublicStation" parameterType="com.baffang.common.entity.PublicChargeStation" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO public_charge_station (
+            name, location_name, longitude, latitude, current_type, price,
+            max_charge_voltage, max_charge_current, max_charge_power,
+            max_vehicles, current_vehicles, open_status, open_time, close_time,
+            provider, image, description, rating, update_time
+        ) VALUES (
+            #{name}, #{locationName}, #{longitude}, #{latitude}, #{currentType}, #{price},
+            #{maxChargeVoltage}, #{maxChargeCurrent}, #{maxChargePower},
+            #{maxVehicles}, #{currentVehicles}, #{openStatus}, #{openTime}, #{closeTime},
+            #{provider}, #{image}, #{description}, #{rating}, NOW()
+        )
+    </insert>
+    
+    <!-- 批量插入公桩信息 -->
+    <insert id="batchInsertPublicStations" parameterType="java.util.List">
+        INSERT INTO public_charge_station (
+            name, location_name, longitude, latitude, current_type, price,
+            max_charge_voltage, max_charge_current, max_charge_power,
+            max_vehicles, current_vehicles, open_status, open_time, close_time,
+            provider, image, description, rating, update_time
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.name}, #{item.locationName}, #{item.longitude}, #{item.latitude}, #{item.currentType}, #{item.price},
+                #{item.maxChargeVoltage}, #{item.maxChargeCurrent}, #{item.maxChargePower},
+                #{item.maxVehicles}, #{item.currentVehicles}, #{item.openStatus}, #{item.openTime}, #{item.closeTime},
+                #{item.provider}, #{item.image}, #{item.description}, #{item.rating}, NOW()
+            )
+        </foreach>
+    </insert>
+    
+    <!-- 根据经纬度范围查询公桩 -->
+    <select id="selectPublicStationsByGeoRange" resultType="com.baffang.common.entity.PublicChargeStation">
+        SELECT id, name, location_name as locationName, longitude, latitude, current_type as currentType,
+               price, max_charge_voltage as maxChargeVoltage, max_charge_current as maxChargeCurrent,
+               max_charge_power as maxChargePower, max_vehicles as maxVehicles, current_vehicles as currentVehicles,
+               open_status as openStatus, open_time as openTime, close_time as closeTime, provider, image,
+               description, rating, update_time as updateTime
+        FROM public_charge_station
+        WHERE
+            <if test="minLng != null and maxLng != null">
+                longitude BETWEEN #{minLng} AND #{maxLng}
+            </if>
+            <if test="(minLng != null and maxLng != null) and (minLat != null and maxLat != null)">
+                AND
+            </if>
+            <if test="minLat != null and maxLat != null">
+                latitude BETWEEN #{minLat} AND #{maxLat}
+            </if>
+            AND open_status = 1
+    </select>
+</mapper>

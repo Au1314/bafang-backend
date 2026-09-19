@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.admin.mapper.ConversationMapper">
+
+    <!-- 根据ID查询 -->
+    <select id="selectById" resultType="com.baffang.common.entity.Conversation">
+        SELECT id, type, status, remark, create_time, end_time, is_deleted
+        FROM conversation 
+        WHERE id = #{id}
+    </select>
+    
+    <!-- 插入 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO conversation (type, status, remark, create_time, is_deleted)
+        VALUES (#{type}, #{status}, #{remark}, #{createTime}, #{isDeleted})
+    </insert>
+    
+    <!-- 更新 -->
+    <update id="updateById">
+        UPDATE conversation
+        <set>
+            <if test="type != null">type = #{type},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="endTime != null">end_time = #{endTime},</if>
+            <if test="isDeleted != null">is_deleted = #{isDeleted},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+    
+    <!-- 删除 -->
+    <delete id="deleteById">
+        DELETE FROM conversation WHERE id = #{id}
+    </delete>
+
+    <!-- 分页查询客服对话列表 -->
+    <select id="selectConversationList" resultType="java.util.Map">
+        SELECT
+            c.id,
+            c.status,
+            c.create_time AS createTime,
+            c.end_time AS endTime,
+            c.remark,
+            u.id AS userId,
+            u.name AS userName,
+            u.phone AS userPhone,
+            u.avatar AS userAvatar,
+            a.id AS adminId,
+            a.name AS adminName,
+            (SELECT content FROM conversation_message 
+             WHERE conversation_id = c.id AND is_deleted = 0 
+             ORDER BY send_time DESC LIMIT 1) AS lastMessage,
+            (SELECT send_time FROM conversation_message 
+             WHERE conversation_id = c.id AND is_deleted = 0 
+             ORDER BY send_time DESC LIMIT 1) AS lastMessageTime,
+            (SELECT COUNT(*) FROM conversation_message 
+             WHERE conversation_id = c.id AND is_deleted = 0) AS messageCount,
+            IFNULL(cp_admin.unread_count, 0) AS unreadCount
+        FROM conversation c
+        LEFT JOIN conversation_participant cp_user ON c.id = cp_user.conversation_id 
+            AND cp_user.participant_type = 0 AND cp_user.role = 0 AND cp_user.is_deleted = 0
+        LEFT JOIN user_info u ON cp_user.participant_id = u.id
+        LEFT JOIN conversation_participant cp_admin ON c.id = cp_admin.conversation_id 
+            AND cp_admin.participant_type = 1 AND cp_admin.role = 1 AND cp_admin.is_deleted = 0
+        LEFT JOIN admin_info a ON cp_admin.participant_id = a.id
+        WHERE c.type = 0
+        AND c.is_deleted = 0
+        <if test="query.status != null">
+            AND c.status = #{query.status}
+        </if>
+        <if test="query.userId != null">
+            AND u.id = #{query.userId}
+        </if>
+        <if test="query.adminId != null">
+            AND a.id = #{query.adminId}
+        </if>
+        <if test="query.startTime != null and query.startTime != ''">
+            AND c.create_time &gt;= #{query.startTime}
+        </if>
+        <if test="query.endTime != null and query.endTime != ''">
+            AND c.create_time &lt;= #{query.endTime}
+        </if>
+        <if test="query.keyword != null and query.keyword != ''">
+            AND EXISTS (
+                SELECT 1 FROM conversation_message cm 
+                WHERE cm.conversation_id = c.id 
+                AND cm.content LIKE CONCAT('%', #{query.keyword}, '%')
+                AND cm.is_deleted = 0
+            )
+        </if>
+        ORDER BY c.create_time DESC
+    </select>
+
+    <!-- 查询待接入的对话列表 -->
+    <select id="selectPendingConversations" resultType="java.util.Map">
+        SELECT
+            c.id,
+            c.create_time AS createTime,
+            TIMESTAMPDIFF(SECOND, c.create_time, NOW()) AS waitingSeconds,
+            u.id AS userId,
+            u.name AS userName,
+            u.phone AS userPhone,
+            u.avatar AS userAvatar,
+            (SELECT content FROM conversation_message 
+             WHERE conversation_id = c.id AND is_deleted = 0 
+             ORDER BY send_time DESC LIMIT 1) AS lastMessage,
+            (SELECT COUNT(*) FROM conversation_message 
+             WHERE conversation_id = c.id AND is_deleted = 0) AS messageCount
+        FROM conversation c
+        LEFT JOIN conversation_participant cp ON c.id = cp.conversation_id 
+            AND cp.participant_type = 0 AND cp.role = 0 AND cp.is_deleted = 0
+        LEFT JOIN user_info u ON cp.participant_id = u.id
+        WHERE c.type = 0
+        AND c.status = 1
+        AND c.is_deleted = 0
+        AND NOT EXISTS (
+            SELECT 1 FROM conversation_participant cp2 
+            WHERE cp2.conversation_id = c.id 
+            AND cp2.participant_type = 1 
+            AND cp2.is_deleted = 0
+        )
+        ORDER BY c.create_time ASC
+    </select>
+
+    <!-- 获取对话详情 -->
+    <select id="selectConversationDetail" resultType="java.util.Map">
+        SELECT
+            c.id,
+            c.type,
+            c.status,
+            c.create_time AS createTime,
+            c.end_time AS endTime,
+            c.remark,
+            u.id AS userId,
+            u.name AS userName,
+            u.phone AS userPhone,
+            u.avatar AS userAvatar,
+            a.id AS adminId,
+            a.name AS adminName
+        FROM conversation c
+        LEFT JOIN conversation_participant cp_user ON c.id = cp_user.conversation_id 
+            AND cp_user.participant_type = 0 AND cp_user.role = 0 AND cp_user.is_deleted = 0
+        LEFT JOIN user_info u ON cp_user.participant_id = u.id
+        LEFT JOIN conversation_participant cp_admin ON c.id = cp_admin.conversation_id 
+            AND cp_admin.participant_type = 1 AND cp_admin.role = 1 AND cp_admin.is_deleted = 0
+        LEFT JOIN admin_info a ON cp_admin.participant_id = a.id
+        WHERE c.id = #{id}
+        AND c.is_deleted = 0
+    </select>
+
+
+    <select id="selectMyConversations" resultType="com.baffang.admin.vo.ConversationListVO">
+    SELECT 
+        c.id,
+        c.type,
+        c.status,
+        CASE c.status 
+            WHEN 0 THEN '待接入'
+            WHEN 1 THEN '进行中'
+            WHEN 2 THEN '已完成'
+            WHEN 3 THEN '已关闭'
+        END AS statusName,
+        c.create_time AS createTime,
+        c.update_time AS updateTime,
+        c.end_time AS endTime,
+        cp.unread_count AS unreadCount,
+        
+        -- 用户信息（从 user_info 表关联）
+        u.id AS userId,
+        u.name AS userName,
+        u.username AS userPhone,
+        u.avatar AS userAvatar,
+        
+        -- 客服/管理员信息
+        a.id AS adminId,
+        a.name AS adminName,
+        
+        -- 最后一条消息
+        (SELECT cm.content FROM conversation_message cm 
+         WHERE cm.conversation_id = c.id AND cm.is_deleted = 0 
+         ORDER BY cm.send_time DESC LIMIT 1) AS lastMessage,
+        (SELECT cm.send_time FROM conversation_message cm 
+         WHERE cm.conversation_id = c.id AND cm.is_deleted = 0 
+         ORDER BY cm.send_time DESC LIMIT 1) AS lastMessageTime,
+        
+        -- 消息数量
+        (SELECT COUNT(*) FROM conversation_message cm 
+         WHERE cm.conversation_id = c.id AND cm.is_deleted = 0) AS messageCount
+         
+    FROM conversation c
+    
+    -- 当前管理员的参与记录
+    INNER JOIN conversation_participant cp 
+        ON c.id = cp.conversation_id 
+        AND cp.participant_id = #{adminId}
+        AND cp.participant_type = 1
+        AND cp.is_deleted = 0
+    
+    -- 关联用户参与者，获取用户信息
+    LEFT JOIN conversation_participant cp_user 
+        ON c.id = cp_user.conversation_id 
+        AND cp_user.participant_type = 0
+        AND cp_user.is_deleted = 0
+    LEFT JOIN user_info u 
+        ON cp_user.participant_id = u.id 
+        AND u.is_deleted = 0
+    
+    -- 关联管理员表，获取客服信息（可选，取第一个管理员参与者）
+    LEFT JOIN admin_info a 
+        ON cp.participant_id = a.id 
+        AND a.is_deleted = 0
+        
+    WHERE c.is_deleted = 0
+    <if test="status != null">
+        AND c.status = #{status}
+    </if>
+    ORDER BY c.update_time DESC
+</select>
+
+
+
+
+</mapper>

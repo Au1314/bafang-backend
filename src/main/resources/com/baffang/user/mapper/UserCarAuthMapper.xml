@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.user.mapper.UserCarAuthMapper">
+    
+    <!-- 新增车辆认证 -->
+    <insert id="insertCarAuth" parameterType="com.baffang.common.entity.CarAuth" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO car_auth (
+            owner_id,
+            vehicle_type,
+            current_type,
+            car_brand,
+            car_type,
+            max_charge_voltage,
+            max_charge_current,
+            max_charge_power,
+            battery_capacity,
+            discharge_power,
+            `range`,
+            vehicle_number,
+            auth_status,
+            is_deleted,
+            create_time,
+            update_time
+        ) VALUES (
+            #{ownerId},
+            #{vehicleType},
+            #{currentType},
+            #{carBrand},
+            #{carType},
+            #{maxChargeVoltage},
+            #{maxChargeCurrent},
+            #{maxChargePower},
+            #{batteryCapacity},
+            #{dischargePower},
+            #{range},
+            #{vehicleNumber},
+            1, -- 审核中状态
+            0, -- 未删除
+            NOW(),
+            NOW()
+        )
+    </insert>
+    
+    <!-- 查询用户是否有未删除的车辆认证记录 -->
+    <select id="countCarAuthByUserId" parameterType="java.lang.Integer" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM car_auth
+        WHERE owner_id = #{userId} AND is_deleted = 0
+    </select>
+    
+    <!-- 根据用户ID查询车辆认证信息 -->
+    <select id="getCarAuthByUserId" parameterType="java.lang.Integer" resultType="com.baffang.common.entity.CarAuth">
+        SELECT
+            id,
+            owner_id AS ownerId,
+            vehicle_type AS vehicleType,
+            car_brand AS carBrand,
+            car_type AS carType,
+            current_type AS currentType,
+            max_charge_voltage AS maxChargeVoltage,
+            max_charge_current AS maxChargeCurrent,
+            max_charge_power AS maxChargePower,
+            battery_capacity AS batteryCapacity,
+            discharge_power AS dischargePower,
+            `range`,
+            auth_status AS authStatus,
+            vehicle_number AS vehicleNumber,
+            create_time AS createTime,
+            update_time AS updateTime
+        FROM car_auth
+        WHERE owner_id = #{userId} AND is_deleted = 0
+    </select>
+
+    <!-- 根据用户ID删除车辆认证信息（软删除） -->
+    <update id="deleteCarAuthByUserId" parameterType="java.lang.Integer">
+        UPDATE car_auth
+        SET is_deleted = 1,
+            update_time = NOW()
+        WHERE owner_id = #{userId} AND is_deleted = 0
+    </update>
+
+    <!-- 更新车辆认证信息 -->
+    <update id="updateCarAuthByUserId" parameterType="map">
+        UPDATE car_auth
+        <set>
+            <if test="carAuthDTO.vehicleType != null">
+                vehicle_type = #{carAuthDTO.vehicleType},
+            </if>
+            <if test="carAuthDTO.currentType != null">
+                current_type = #{carAuthDTO.currentType},
+            </if>
+            <if test="carAuthDTO.carBrand != null">
+                car_brand = #{carAuthDTO.carBrand},
+            </if>
+            <if test="carAuthDTO.carType != null">
+                car_type = #{carAuthDTO.carType},
+            </if>
+            <if test="carAuthDTO.maxChargeVoltage != null">
+                max_charge_voltage = #{carAuthDTO.maxChargeVoltage},
+            </if>
+            <if test="carAuthDTO.maxChargeCurrent != null">
+                max_charge_current = #{carAuthDTO.maxChargeCurrent},
+            </if>
+            <if test="carAuthDTO.maxChargePower != null">
+                max_charge_power = #{carAuthDTO.maxChargePower},
+            </if>
+            <if test="carAuthDTO.batteryCapacity != null">
+                battery_capacity = #{carAuthDTO.batteryCapacity},
+            </if>
+            <if test="carAuthDTO.dischargePower != null">
+                discharge_power = #{carAuthDTO.dischargePower},
+            </if>
+            <if test="carAuthDTO.range != null">
+                `range` = #{carAuthDTO.range},
+            </if>
+            <if test="carAuthDTO.vehicleNumber != null">
+                vehicle_number = #{carAuthDTO.vehicleNumber},
+            </if>
+            update_time = NOW()
+        </set>
+        WHERE owner_id = #{userId} AND is_deleted = 0
+    </update>
+</mapper>

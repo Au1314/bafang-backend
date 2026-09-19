@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.admin.mapper.ForumReplyMapper">
+
+    <!-- 分页查询评论列表 -->
+    <select id="selectList" resultType="java.util.Map">
+        SELECT 
+            r.id,
+            r.post_id AS postId,
+            r.user_id AS userId,
+            r.parent_id AS parentId,
+            r.reply_to_user_id AS replyToUserId,
+            r.content,
+            r.like_count AS likeCount,
+            r.create_time AS createTime,
+            p.title AS postTitle,
+            u.username AS userName,
+            u.avatar AS userAvatar,
+            ru.username AS replyToUserName
+        FROM post_reply r
+        LEFT JOIN forum_post p ON r.post_id = p.id
+        LEFT JOIN user_info u ON r.user_id = u.id
+        LEFT JOIN user_info ru ON r.reply_to_user_id = ru.id
+        WHERE r.is_deleted = 0
+        <if test="query.postId != null">
+            AND r.post_id = #{query.postId}
+        </if>
+        <if test="query.userId != null">
+            AND r.user_id = #{query.userId}
+        </if>
+        <if test="query.keyword != null and query.keyword != ''">
+            AND r.content LIKE CONCAT('%', #{query.keyword}, '%')
+        </if>
+        <if test="query.startTime != null and query.startTime != ''">
+            AND r.create_time &gt;= #{query.startTime}
+        </if>
+        <if test="query.endTime != null and query.endTime != ''">
+            AND r.create_time &lt;= #{query.endTime}
+        </if>
+        ORDER BY r.create_time DESC
+    </select>
+
+    <!-- 查询评论详情 -->
+    <select id="selectDetailById" resultType="java.util.Map">
+        SELECT 
+            r.id,
+            r.post_id AS postId,
+            r.user_id AS userId,
+            r.parent_id AS parentId,
+            r.reply_to_user_id AS replyToUserId,
+            r.content,
+            r.like_count AS likeCount,
+            r.create_time AS createTime,
+            r.update_time AS updateTime,
+            p.title AS postTitle,
+            u.username AS userName,
+            u.avatar AS userAvatar,
+            u.phone AS userPhone,
+            ru.username AS replyToUserName,
+            pr.content AS parentContent
+        FROM post_reply r
+        LEFT JOIN forum_post p ON r.post_id = p.id
+        LEFT JOIN user_info u ON r.user_id = u.id
+        LEFT JOIN user_info ru ON r.reply_to_user_id = ru.id
+        LEFT JOIN post_reply pr ON r.parent_id = pr.id
+        WHERE r.id = #{id} AND r.is_deleted = 0
+    </select>
+
+    <!-- 检查评论是否存在 -->
+    <select id="existsById" resultType="boolean">
+        SELECT COUNT(1) > 0 FROM post_reply WHERE id = #{id} AND is_deleted = 0
+    </select>
+
+    <!-- 逻辑删除评论 -->
+    <update id="deleteById">
+        UPDATE post_reply SET is_deleted = 1, update_time = NOW() WHERE id = #{id}
+    </update>
+
+    <!-- 批量逻辑删除评论 -->
+    <update id="batchDelete">
+        UPDATE post_reply SET is_deleted = 1, update_time = NOW()
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <!-- 查询帖子的最新评论 -->
+    <select id="selectLatestByPostId" resultType="java.util.Map">
+        SELECT 
+            r.id,
+            r.post_id AS postId,
+            r.user_id AS userId,
+            r.parent_id AS parentId,
+            r.reply_to_user_id AS replyToUserId,
+            r.content,
+            r.like_count AS likeCount,
+            r.create_time AS createTime,
+            u.username AS userName,
+            u.avatar AS userAvatar,
+            ru.username AS replyToUserName
+        FROM post_reply r
+        LEFT JOIN user_info u ON r.user_id = u.id
+        LEFT JOIN user_info ru ON r.reply_to_user_id = ru.id
+        WHERE r.post_id = #{postId} AND r.is_deleted = 0
+        ORDER BY r.create_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 查询子评论 -->
+    <select id="selectChildReplies" resultType="java.util.Map">
+        SELECT 
+            r.id,
+            r.post_id AS postId,
+            r.user_id AS userId,
+            r.parent_id AS parentId,
+            r.reply_to_user_id AS replyToUserId,
+            r.content,
+            r.like_count AS likeCount,
+            r.create_time AS createTime,
+            u.username AS userName,
+            u.avatar AS userAvatar,
+            ru.username AS replyToUserName
+        FROM post_reply r
+        LEFT JOIN user_info u ON r.user_id = u.id
+        LEFT JOIN user_info ru ON r.reply_to_user_id = ru.id
+        WHERE r.parent_id = #{parentId} AND r.is_deleted = 0
+        ORDER BY r.create_time ASC
+    </select>
+
+    <!-- 查询评论统计 -->
+    <select id="selectStatistics" resultType="java.util.Map">
+        SELECT 
+            COUNT(1) AS totalReplyCount,
+            SUM(CASE WHEN DATE(create_time) = CURDATE() THEN 1 ELSE 0 END) AS todayReplyCount
+        FROM post_reply
+        WHERE is_deleted = 0
+    </select>
+
+</mapper>

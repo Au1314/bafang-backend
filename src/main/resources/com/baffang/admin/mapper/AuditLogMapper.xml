@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.admin.mapper.AuditLogMapper">
+
+    <resultMap id="BaseResultMap" type="com.baffang.common.entity.AuditLog">
+        <id column="id" property="id"/>
+        <result column="audit_id" property="auditId"/>
+        <result column="admin_id" property="adminId"/>
+        <result column="action" property="action"/>
+        <result column="from_status" property="fromStatus"/>
+        <result column="to_status" property="toStatus"/>
+        <result column="opinion" property="opinion"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO audit_log (
+            audit_id, admin_id, action, from_status, to_status, opinion, create_time
+        ) VALUES (
+            #{auditId}, #{adminId}, #{action}, #{fromStatus}, #{toStatus}, #{opinion}, NOW()
+        )
+    </insert>
+
+    <select id="selectByAuditId" resultMap="BaseResultMap">
+        SELECT * FROM audit_log 
+        WHERE audit_id = #{auditId}
+        ORDER BY create_time ASC
+    </select>
+
+
+        <!-- 查询审核日志（带操作人信息） -->
+    <select id="selectLogsWithAdmin" resultType="java.util.Map">
+        SELECT 
+            al.id,
+            al.action,
+            al.from_status AS fromStatus,
+            al.to_status AS toStatus,
+            al.opinion,
+            al.admin_id AS adminId,
+            al.create_time AS createTime,
+            a.name AS adminName
+        FROM audit_log al
+        LEFT JOIN admin_info a ON al.admin_id = a.id
+        WHERE al.audit_id = #{auditId}
+        ORDER BY al.create_time ASC
+    </select>
+
+
+</mapper>

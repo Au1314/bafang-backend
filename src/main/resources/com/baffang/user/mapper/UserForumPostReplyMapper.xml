@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.user.mapper.UserForumPostReplyMapper">
+
+    <insert id="insertReply" parameterType="com.baffang.common.entity.PostReply" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO post_reply (
+            post_id,
+            user_id,
+            parent_id,
+            reply_to_user_id,
+            content,
+            like_count,
+            create_time,
+            update_time,
+            is_deleted
+        ) VALUES (
+            #{postId},
+            #{userId},
+            #{parentId},
+            #{replyToUserId},
+            #{content},
+            0,
+            NOW(),
+            NOW(),
+            0
+        )
+    </insert>
+    
+    <select id="getPostReplies" parameterType="Integer" resultType="com.baffang.user.vo.PostDetailResponseVO$ReplyVO">
+        SELECT 
+            pr.id AS replyId,
+            pr.user_id AS userId,
+            pr.parent_id AS parentId,
+            pr.reply_to_user_id AS targetUserId,
+            pr.content,
+            pr.like_count AS likeCount,
+            DATE_FORMAT(pr.create_time, '%Y-%m-%d %H:%i:%s') AS createTime,
+            ui.name AS userName,
+            ui.avatar AS userAvatar
+        FROM post_reply pr
+        JOIN user_info ui ON pr.user_id = ui.id
+        WHERE pr.post_id = #{postId} AND pr.is_deleted = 0 AND ui.is_deleted = 0
+        ORDER BY pr.create_time ASC;
+    </select>
+
+</mapper>

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.user.mapper.UserAIChatConversationMapper">
+    
+    <!-- 插入AI对话会话 -->
+    <insert id="insert" parameterType="com.baffang.common.entity.AIChatConversation" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ai_conversation (
+            user_id,
+            ai_model,
+            session_id,
+            session_context,
+            status,
+            start_time,
+            end_time,
+            last_interaction_time,
+            total_messages,
+            is_deleted,
+            create_time,
+            update_time
+        ) VALUES (
+            #{userId},
+            #{aiModel},
+            #{sessionId},
+            #{sessionContext},
+            #{status},
+            #{startTime},
+            #{endTime},
+            #{lastInteractionTime},
+            #{totalMessages},
+            #{isDeleted},
+            #{createTime},
+            #{updateTime}
+        )
+    </insert>
+
+    <!-- 根据会话ID查询AI对话会话 -->
+    <select id="selectBySessionId" parameterType="java.lang.String" resultType="com.baffang.common.entity.AIChatConversation">
+        SELECT * FROM ai_conversation WHERE session_id = #{sessionId} AND is_deleted = 0
+    </select>
+
+    <!-- 根据ID更新AI对话会话 -->
+    <update id="updateById" parameterType="com.baffang.common.entity.AIChatConversation">
+        UPDATE ai_conversation SET
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="aiModel != null">ai_model = #{aiModel},</if>
+            <if test="sessionId != null">session_id = #{sessionId},</if>
+            <if test="sessionContext != null">session_context = #{sessionContext},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="startTime != null">start_time = #{startTime},</if>
+            <if test="endTime != null">end_time = #{endTime},</if>
+            <if test="lastInteractionTime != null">last_interaction_time = #{lastInteractionTime},</if>
+            <if test="totalMessages != null">total_messages = #{totalMessages},</if>
+            <if test="isDeleted != null">is_deleted = #{isDeleted},</if>
+            update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 增加消息计数 -->
+    <update id="incrementMessageCount" parameterType="java.lang.Integer">
+        UPDATE ai_conversation SET
+            total_messages = total_messages + 1
+        WHERE id = #{conversationId}
+    </update>
+
+    <!-- 根据用户ID查询会话列表 -->
+    <select id="selectConversationListByUserId" parameterType="java.lang.Integer" resultType="com.baffang.user.vo.AIChatConversationListVO">
+        SELECT
+            c.id AS conversationId,
+            c.ai_model AS aiModel,
+            c.session_id AS sessionId,
+            c.status,
+            c.last_interaction_time AS lastInteractionTime,
+            c.total_messages AS totalMessages,
+            (SELECT m.content 
+             FROM ai_message m 
+             WHERE m.conversation_id = c.id 
+             ORDER BY m.send_time DESC 
+             LIMIT 1) AS lastMessage
+        FROM ai_conversation c
+        WHERE c.user_id = #{userId} AND c.is_deleted = 0
+        ORDER BY c.last_interaction_time DESC
+    </select>
+</mapper>

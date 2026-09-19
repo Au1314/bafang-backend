@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.admin.mapper.ConversationMessageMapper">
+
+    <select id="selectById" resultType="com.baffang.common.entity.ConversationMessage">
+        SELECT id, conversation_id, sender_id, sender_type, content, 
+               message_type, extra_info, send_time, is_read, is_deleted
+        FROM conversation_message WHERE id = #{id}
+    </select>
+    
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO conversation_message 
+        (conversation_id, sender_id, sender_type, content, message_type, extra_info, send_time, is_read, is_deleted)
+        VALUES 
+        (#{conversationId}, #{senderId}, #{senderType}, #{content}, #{messageType}, #{extraInfo}, #{sendTime}, #{isRead}, #{isDeleted})
+    </insert>
+    
+    <update id="updateById">
+        UPDATE conversation_message
+        <set>
+            <if test="content != null">content = #{content},</if>
+            <if test="messageType != null">message_type = #{messageType},</if>
+            <if test="extraInfo != null">extra_info = #{extraInfo},</if>
+            <if test="isRead != null">is_read = #{isRead},</if>
+            <if test="isDeleted != null">is_deleted = #{isDeleted},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+    
+    <delete id="deleteById">
+        DELETE FROM conversation_message WHERE id = #{id}
+    </delete>
+    
+    <select id="selectMessagesByConversationId" resultType="java.util.Map">
+        SELECT 
+            m.id,
+            m.conversation_id AS conversationId,
+            m.sender_id AS senderId,
+            m.sender_type AS senderType,
+            m.content,
+            m.message_type AS messageType,
+            m.extra_info AS extraInfo,
+            m.send_time AS sendTime,
+            m.is_read AS isRead,
+            CASE 
+                WHEN m.sender_type = 0 THEN u.name
+                WHEN m.sender_type = 1 THEN a.name
+                ELSE '系统'
+            END AS senderName,
+            CASE 
+                WHEN m.sender_type = 0 THEN u.avatar
+                WHEN m.sender_type = 1 THEN a.avatar
+                ELSE NULL
+            END AS senderAvatar
+        FROM conversation_message m
+        LEFT JOIN user_info u ON m.sender_type = 0 AND m.sender_id = u.id
+        LEFT JOIN admin_info a ON m.sender_type = 1 AND m.sender_id = a.id
+        WHERE m.conversation_id = #{conversationId}
+        AND m.is_deleted = 0
+        ORDER BY m.send_time ASC
+    </select>
+    
+    <update id="markAsRead">
+        UPDATE conversation_message 
+        SET is_read = 1
+        WHERE conversation_id = #{conversationId} 
+        AND sender_type = #{senderType}
+        AND is_read = 0
+        AND is_deleted = 0
+    </update>
+    
+    <select id="selectByConversationId" resultType="com.baffang.common.entity.ConversationMessage">
+        SELECT id, conversation_id, sender_id, sender_type, content, 
+               message_type, extra_info, send_time, is_read, is_deleted
+        FROM conversation_message 
+        WHERE conversation_id = #{conversationId} 
+        AND is_deleted = 0
+        ORDER BY send_time ASC
+    </select>
+
+</mapper>

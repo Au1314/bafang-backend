@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.user.mapper.UserConversationMessageMapper">
+    
+    <!-- 插入对话消息 -->
+    <insert id="insert" parameterType="com.baffang.common.entity.ConversationMessage" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO conversation_message (
+            conversation_id,
+            sender_id,
+            sender_type,
+            content,
+            message_type,
+            extra_info,
+            send_time,
+            is_read,
+            is_deleted
+        ) VALUES (
+            #{conversationId},
+            #{senderId},
+            #{senderType},
+            #{content},
+            #{messageType},
+            #{extraInfo},
+            NOW(),
+            0,
+            0
+        )
+    </insert>
+
+    <!-- 根据对话ID查询消息列表 -->
+    <select id="selectMessagesByConversationId" parameterType="java.lang.Integer" resultType="com.baffang.user.vo.MessageVO">
+        SELECT
+            cm.id AS messageId,
+            cm.sender_id AS senderId,
+            u.name AS senderName,
+            cm.send_time AS sendTime,
+            cm.is_read,
+            cm.message_type,
+            cm.content,
+            cm.extra_info AS extraInfo
+        FROM conversation_message cm
+        LEFT JOIN user_info u ON cm.sender_id = u.id
+        WHERE cm.conversation_id = #{conversationId}
+        AND cm.is_deleted = 0
+        ORDER BY cm.send_time ASC
+    </select>
+</mapper>

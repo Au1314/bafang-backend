@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.user.mapper.UserConversationParticipantMapper">
+    
+    <!-- 插入对话参与者 -->
+    <insert id="insert" parameterType="com.baffang.common.entity.ConversationParticipant" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO conversation_participant (
+            conversation_id,
+            participant_id,
+            participant_type,
+            role,
+            join_time,
+            last_read_time,
+            unread_count,
+            is_deleted
+        ) VALUES (
+            #{conversationId},
+            #{participantId},
+            #{participantType},
+            #{role},
+            NOW(),
+            NOW(),
+            0,
+            0
+        )
+    </insert>
+
+    <!-- 根据对话ID查询参与者列表 -->
+    <select id="selectByConversationId" parameterType="java.lang.Integer" resultType="com.baffang.common.entity.ConversationParticipant">
+        SELECT
+            id,
+            conversation_id AS conversationId,
+            participant_id AS participantId,
+            participant_type AS participantType,
+            role,
+            join_time AS joinTime,
+            last_read_time AS lastReadTime,
+            unread_count AS unreadCount,
+            is_deleted AS isDeleted
+        FROM conversation_participant
+        WHERE conversation_id = #{conversationId}
+        AND is_deleted = 0
+    </select>
+</mapper>

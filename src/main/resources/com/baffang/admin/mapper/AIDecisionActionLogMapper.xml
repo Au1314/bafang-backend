@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.admin.mapper.AIDecisionActionLogMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="BaseResultMap" type="com.baffang.common.entity.AIDecisionActionLog">
+        <id column="id" property="id"/>
+        <result column="decision_id" property="decisionId"/>
+        <result column="action_type" property="actionType"/>
+        <result column="action_name" property="actionName"/>
+        <result column="action_params" property="actionParams"/>
+        <result column="execute_status" property="executeStatus"/>
+        <result column="execute_result" property="executeResult"/>
+        <result column="error_msg" property="errorMsg"/>
+        <result column="execute_time" property="executeTime"/>
+        <result column="cost_ms" property="costMs"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <!-- 插入记录 -->
+    <insert id="insert" parameterType="com.baffang.common.entity.AIDecisionActionLog" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ai_decision_action_log (
+            decision_id, action_type, action_name, action_params,
+            execute_status, execute_result, error_msg, execute_time, cost_ms, create_time
+        ) VALUES (
+            #{decisionId}, #{actionType}, #{actionName}, #{actionParams},
+            #{executeStatus}, #{executeResult}, #{errorMsg}, #{executeTime}, #{costMs}, NOW()
+        )
+    </insert>
+
+    <!-- 更新记录 -->
+    <update id="updateById" parameterType="com.baffang.common.entity.AIDecisionActionLog">
+        UPDATE ai_decision_action_log
+        <set>
+            <if test="decisionId != null">decision_id = #{decisionId},</if>
+            <if test="actionType != null">action_type = #{actionType},</if>
+            <if test="actionName != null">action_name = #{actionName},</if>
+            <if test="actionParams != null">action_params = #{actionParams},</if>
+            <if test="executeStatus != null">execute_status = #{executeStatus},</if>
+            <if test="executeResult != null">execute_result = #{executeResult},</if>
+            <if test="errorMsg != null">error_msg = #{errorMsg},</if>
+            <if test="executeTime != null">execute_time = #{executeTime},</if>
+            <if test="costMs != null">cost_ms = #{costMs},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 根据ID查询 -->
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM ai_decision_action_log WHERE id = #{id}
+    </select>
+
+    <!-- 根据决策ID查询 -->
+    <select id="selectByDecisionId" resultMap="BaseResultMap">
+        SELECT * FROM ai_decision_action_log 
+        WHERE decision_id = #{decisionId}
+        ORDER BY id ASC, create_time ASC
+    </select>
+
+</mapper>

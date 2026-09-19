@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.user.mapper.UserPrivateStationReserveMapper">
+    <!-- 新增私桩预约记录 -->
+    <insert id="insert" parameterType="com.baffang.common.entity.PrivateStationReserve" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO private_station_reserve (
+            user_id,
+            station_owner_id,
+            charging_station_id,
+            reserve_time,
+            status,
+            create_time,
+            update_time
+        ) VALUES (
+            #{userId},
+            #{stationOwnerId},
+            #{chargingStationId},
+            #{reserveTime},
+            #{status},
+            NOW(),
+            NOW()
+        )
+    </insert>
+
+    <!-- 取消私桩预约 -->
+    <update id="cancelPrivateStationReserve" parameterType="java.util.Map">
+        UPDATE private_station_reserve
+        SET
+            status = 2,
+            update_time = NOW()
+        WHERE
+            user_id = #{userId}
+            AND charging_station_id = #{stationId}
+            AND status = 0
+    </update>
+
+    <!-- 查询个人私桩预约记录 -->
+    <select id="queryPrivateStationReserveList" parameterType="java.util.Map" resultType="com.baffang.user.vo.PrivateStationReserveListVO">
+        SELECT
+            pr.id AS reserveId,
+            pr.charging_station_id AS stationId,
+            pr.station_owner_id AS stationOwnerId,
+            pcs.name AS stationName,
+            ui.name AS ownerName,
+            pr.reserve_time AS reserveTime,
+            pr.status AS reserveStatus,
+            pr.create_time AS createTime
+        FROM
+            private_station_reserve pr
+        LEFT JOIN
+            private_charge_station pcs ON pr.charging_station_id = pcs.id
+        LEFT JOIN
+            user_info ui ON pr.station_owner_id = ui.id
+        WHERE
+            pr.user_id = #{userId}
+        <if test="status != null">
+            AND pr.status = #{status}
+        </if>
+        ORDER BY
+            pr.create_time DESC
+    </select>
+
+    <!-- 查询私桩预约记录（桩主视角） -->
+    <select id="queryPrivateStationReserveByOwner" parameterType="java.util.Map" resultType="com.baffang.user.vo.PrivateStationOwnerReserveListVO">
+        SELECT
+            pr.id AS reserveId,
+            pr.charging_station_id AS stationId,
+            pcs.name AS stationName,
+            pr.user_id AS reserveUserId,
+            ui.name AS reserveUserName,
+            pr.reserve_time AS reserveTime,
+            pr.status AS status,
+            pr.create_time AS createTime
+        FROM
+            private_station_reserve pr
+        LEFT JOIN
+            private_charge_station pcs ON pr.charging_station_id = pcs.id
+        LEFT JOIN
+            user_info ui ON pr.user_id = ui.id
+        WHERE
+            pr.station_owner_id = #{stationOwnerId}
+        <if test="status != null">
+            AND pr.status = #{status}
+        </if>
+        ORDER BY
+            pr.create_time DESC
+    </select>
+
+    <!-- 处理私桩预约申请 -->
+    <update id="handlePrivateStationReserve" parameterType="java.util.Map">
+        UPDATE private_station_reserve
+        SET
+            status = #{status},
+            update_time = NOW()
+        WHERE
+            id = #{reserveId}
+            AND station_owner_id = #{userId}
+            AND status = 0
+    </update>
+
+    <!-- 根据预约ID查询预约记录 -->
+    <select id="selectPrivateStationReserveById" parameterType="java.lang.Integer" resultType="com.baffang.common.entity.PrivateStationReserve">
+        SELECT
+            *
+        FROM
+            private_station_reserve
+        WHERE
+            id = #{reserveId}
+    </select>
+</mapper>
