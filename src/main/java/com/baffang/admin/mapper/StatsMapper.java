@@ -1,6 +1,8 @@
 package com.baffang.admin.mapper;
 
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 import java.util.Map;
@@ -148,6 +150,24 @@ public interface StatsMapper {
     
     /** 订单状态分布 */
     List<Map<String, Object>> countOrdersByStatus();
+
+    /**
+     * 导出用：按类型与创建时间范围查询订单明细（不分页；order 为主表需反引号）
+     */
+    @Select("<script>" +
+            "SELECT order_no AS orderNo, user_id AS userId, order_type AS orderType, status, " +
+            "electricity, unit_price AS unitPrice, total_amount AS totalAmount, " +
+            "actual_amount AS actualAmount, pay_method AS payMethod, " +
+            "DATE_FORMAT(create_time, '%Y-%m-%d %H:%i:%s') AS createTime " +
+            "FROM `order` WHERE is_deleted = 0 " +
+            "<if test='orderType != null'> AND order_type = #{orderType}</if> " +
+            "<if test='startDate != null and startDate != \"\"'> AND create_time &gt;= #{startDate}</if> " +
+            "<if test='endDate != null and endDate != \"\"'> AND create_time &lt;= CONCAT(#{endDate}, ' 23:59:59')</if> " +
+            "ORDER BY create_time DESC" +
+            "</script>")
+    List<Map<String, Object>> selectOrdersForExport(@Param("orderType") Integer orderType,
+                                                    @Param("startDate") String startDate,
+                                                    @Param("endDate") String endDate);
     
     /** 私桩预约统计 */
     List<Map<String, Object>> countReserveByStatus();

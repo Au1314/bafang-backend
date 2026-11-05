@@ -17,6 +17,9 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -130,6 +133,35 @@ public class EmergencyCallController {
     public Result<EmergencyStatisticsVO> getStatistics(HttpServletRequest request) {
         Integer adminId = checkAdminPermission(request, 4);
         return Result.success(emergencyCallService.getStatistics(adminId));
+    }
+
+    // ==================== 处理日志（真持久化） ====================
+
+    /**
+     * 添加紧急呼叫处理日志
+     */
+    @PostMapping("/call/{id}/logs")
+    @Operation(summary = "添加紧急呼叫处理日志")
+    @SystemLog(module = "紧急响应", action = "添加处理日志")
+    public Result<Void> addEmergencyCallLog(
+            @PathVariable("id") Integer id,
+            @RequestBody @Validated EmergencyLogCreateDTO dto,
+            HttpServletRequest request) {
+        Integer adminId = checkAdminPermission(request, 4);
+        emergencyCallService.addHandleLog(id, dto.getContent(), adminId);
+        return Result.success();
+    }
+
+    /**
+     * 查询紧急呼叫处理日志
+     */
+    @GetMapping("/call/{id}/logs")
+    @Operation(summary = "查询紧急呼叫处理日志")
+    public Result<List<Map<String, Object>>> getEmergencyCallLogs(
+            @PathVariable("id") Integer id,
+            HttpServletRequest request) {
+        checkAdminPermission(request, 4);
+        return Result.success(emergencyCallService.getHandleLogs(id));
     }
 
     // ==================== JWT权限校验方法 ====================

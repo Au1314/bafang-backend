@@ -4,6 +4,9 @@ import com.baffang.admin.dto.*;
 import com.baffang.admin.vo.*;
 import com.github.pagehelper.Page;
 
+import java.util.List;
+import java.util.Map;
+
 public interface EmergencyCallService {
 
     /**
@@ -52,4 +55,14 @@ public interface EmergencyCallService {
      * 获取统计数据
      */
     EmergencyStatisticsVO getStatistics(Integer adminId);
+
+    /**
+     * 添加处理日志（真持久化到 emergency_handle_log 表）
+     */
+    void addHandleLog(Integer callId, String content, Integer adminId);
+
+    /**
+     * 查询呼叫的处理日志（时间正序，含管理员姓名）
+     */
+    List<Map<String, Object>> getHandleLogs(Integer callId);
 }

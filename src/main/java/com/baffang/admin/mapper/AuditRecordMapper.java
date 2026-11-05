@@ -4,6 +4,7 @@ import com.baffang.admin.dto.AuditRecordQueryDTO;
 import com.baffang.common.entity.AuditRecord;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 import java.util.Map;
@@ -58,6 +59,24 @@ public interface AuditRecordMapper {
     List<AuditRecord> selectList(@Param("auditType") Integer auditType,
                                   @Param("currentStatus") Integer currentStatus,
                                   @Param("currentAdminId") Integer currentAdminId);
+
+    /**
+     * 导出用：按类型与提交时间范围查询审核记录（不分页）
+     */
+    @Select("<script>" +
+            "SELECT id, audit_no AS auditNo, audit_type AS auditType, business_id AS businessId, " +
+            "applicant_id AS applicantId, title, current_status AS currentStatus, priority, " +
+            "submit_time AS submitTime, finish_time AS finishTime, " +
+            "final_opinion AS finalOpinion, reject_reason AS rejectReason " +
+            "FROM audit_record WHERE is_deleted = 0 " +
+            "<if test='auditType != null'> AND audit_type = #{auditType}</if> " +
+            "<if test='startDate != null and startDate != \"\"'> AND submit_time &gt;= #{startDate}</if> " +
+            "<if test='endDate != null and endDate != \"\"'> AND submit_time &lt;= CONCAT(#{endDate}, ' 23:59:59')</if> " +
+            "ORDER BY submit_time DESC" +
+            "</script>")
+    List<AuditRecord> selectForExport(@Param("auditType") Integer auditType,
+                                      @Param("startDate") String startDate,
+                                      @Param("endDate") String endDate);
     
     /**
      * 根据申请人ID查询

@@ -3,11 +3,13 @@ package com.baffang.admin.service.impl;
 import com.baffang.admin.dto.*;
 import com.baffang.admin.mapper.AdminMapper;
 import com.baffang.admin.mapper.EmergencyCallMapper;
+import com.baffang.admin.mapper.EmergencyHandleLogMapper;
 import com.baffang.admin.service.AdminNoticeService;
 import com.baffang.admin.service.AmapService;
 import com.baffang.admin.service.EmergencyCallService;
 import com.baffang.admin.vo.*;
 import com.baffang.common.entity.AdminInfo;
+import com.baffang.common.entity.EmergencyHandleLog;
 import com.baffang.common.exception.BusinessException;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
@@ -32,6 +34,7 @@ public class EmergencyCallServiceImpl implements EmergencyCallService {
     private final AmapService amapService;
     private final AdminNoticeService noticeService;  // 新增
     private final AdminMapper adminMapper;  // 新增，用于获取客服姓名
+    private final EmergencyHandleLogMapper emergencyHandleLogMapper;  // 处理日志持久化
 
     // ==================== 待响应列表（支持导航距离排序） ====================
 
@@ -307,6 +310,39 @@ public Page<EmergencyCallListVO> getCallList(EmergencyCallQueryDTO queryDTO) {
         log.info("管理员[{}]取消呼叫[{}]，原因: {}", adminId, id, dto.getCancelReason());
 
         sendCancelNotice(id, dto.getCancelReason());
+    }
+
+    // ==================== 处理日志（真持久化） ====================
+
+    @Override
+    public void addHandleLog(Integer callId, String content, Integer adminId) {
+        if (!StringUtils.hasText(content)) {
+            throw new BusinessException("日志内容不能为空");
+        }
+        if (!emergencyCallMapper.existsById(callId)) {
+            throw new BusinessException("呼叫记录不存在");
+        }
+        Integer status = emergencyCallMapper.selectStatusById(callId);
+        if (status == null || status == 0) {
+            throw new BusinessException("请先响应呼叫后再添加处理日志");
+        }
+        if (status == 2 || status == 3) {
+            throw new BusinessException("该呼叫已结束，无法继续添加日志");
+        }
+        EmergencyHandleLog record = new EmergencyHandleLog();
+        record.setCallId(callId);
+        record.setAdminId(adminId);
+        record.setContent(content.trim());
+        emergencyHandleLogMapper.insert(record);
+        log.info("响应员[{}]为呼叫[{}]添加处理日志", adminId, callId);
+    }
+
+    @Override
+    public List<Map<String, Object>> getHandleLogs(Integer callId) {
+        if (!emergencyCallMapper.existsById(callId)) {
+            throw new BusinessException("呼叫记录不存在");
+        }
+        return emergencyHandleLogMapper.selectByCallId(callId);
     }
 
      /**

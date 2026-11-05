@@ -2,8 +2,10 @@ package com.baffang.admin.service.impl;
 
 import com.baffang.admin.mapper.CarAuthMapper;
 import com.baffang.admin.mapper.PrivateChargeStationMapper;
+import com.baffang.admin.mapper.StatsMapper;
 import com.baffang.admin.service.StatsService;
 import com.baffang.admin.vo.PlatformStatsVO;
+import com.baffang.admin.vo.ScreenStatsVO;
 import com.baffang.admin.vo.StationDistributionVO;
 import com.baffang.admin.vo.StationDistributionVO.AuthStatusDistribution;
 import com.baffang.admin.vo.StationDistributionVO.CurrentTypeDistribution;
@@ -31,6 +33,9 @@ public class StatsServiceImpl implements StatsService {
 
     @Autowired
     private CarAuthMapper carAuthMapper;
+
+    @Autowired
+    private StatsMapper statsMapper;
 
     // 状态名称映射
     private static final String[] STATUS_NAMES = {"空闲", "已预约", "已充电", "异常"};
@@ -66,9 +71,53 @@ public class StatsServiceImpl implements StatsService {
         
         // 统计日期
         statsVO.setStatsDate(today);
-        
+
         return statsVO;
     }
+
+    /**
+     * 数据大屏汇总统计（真实数据）
+     * 注意：实时充电功率 / 设备在线率无数据来源，由前端以演示数据展示并明示标注
+     */
+    @Override
+    public ScreenStatsVO getScreenStats() {
+        ScreenStatsVO vo = new ScreenStatsVO();
+        String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+        vo.setTotalUsers(userMapper.countTotalUsers());
+        vo.setDailyActiveUsers(userMapper.countDailyActiveUsers(today));
+        vo.setTotalOrders(nvl(statsMapper.countTotalOrders()));
+        vo.setTodayOrders(nvl(statsMapper.countTodayOrders()));
+        vo.setTotalRevenue(nvl(statsMapper.sumTotalRevenue()));
+        vo.setTodayRevenue(nvl(statsMapper.sumTodayRevenue()));
+        vo.setTotalChargeAmount(nvl(statsMapper.sumTotalChargeAmount()));
+        vo.setTodayChargeAmount(nvl(statsMapper.sumTodayChargeAmount()));
+        vo.setTodayEmergencyCalls(nvl(statsMapper.countTodayEmergencyCalls()));
+        vo.setPendingConversations(nvl(statsMapper.countPendingCsSessions()));
+
+        // 故障私桩 = 状态 3（异常）的数量
+        int fault = 0;
+        for (Map<String, Object> item : privateChargeStationMapper.countGroupByStatus()) {
+            Object status = item.get("status");
+            Object count = item.get("count");
+            if (status != null && ((Number) status).intValue() == 3 && count != null) {
+                fault = ((Number) count).intValue();
+            }
+        }
+        vo.setFaultPileCount(fault);
+        vo.setStationStatusDistribution(privateChargeStationMapper.countGroupByStatus());
+        vo.setStatsDate(java.sql.Date.valueOf(today));
+        return vo;
+    }
+
+    private int nvl(Integer v) {
+        return v == null ? 0 : v;
+    }
+
+    private double nvl(Double v) {
+        return v == null ? 0.0 : v;
+    }
+
     @Override
     public StationDistributionVO getStationDistribution() {
         StationDistributionVO distributionVO = new StationDistributionVO();

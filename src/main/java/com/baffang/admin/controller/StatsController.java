@@ -2,6 +2,7 @@ package com.baffang.admin.controller;
 
 import com.baffang.admin.service.StatsService;
 import com.baffang.admin.vo.PlatformStatsVO;
+import com.baffang.admin.vo.ScreenStatsVO;
 import com.baffang.admin.vo.StationDistributionVO;
 import com.baffang.common.constant.JwtConstants;
 import com.baffang.common.enums.ErrorMsg;
@@ -9,6 +10,7 @@ import com.baffang.common.exception.BusinessException;
 import com.baffang.common.result.Result;
 import com.baffang.common.util.JwtUtil;
 import io.jsonwebtoken.Claims;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -51,7 +53,18 @@ public class StatsController {
     }
 
     /**
- * 校验管理员权限
+     * 数据大屏汇总统计（真实数据）
+     * 权限：普通管理员及以上（type <= 1）
+     */
+    @GetMapping("/screen")
+    @Operation(summary = "数据大屏汇总统计")
+    public Result<ScreenStatsVO> getScreenStats(HttpServletRequest request) {
+        checkAdminPermission(request, 1);
+        return Result.success(statsService.getScreenStats());
+    }
+
+     /**
+     * 校验管理员权限
  * @param request 请求
  * @param maxType 允许的最大 type 值（type 越小权限越大）
  */

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.baffang.admin.mapper.EmergencyHandleLogMapper">
+
+    <!-- 新增处理日志 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO emergency_handle_log (call_id, admin_id, content, create_time)
+        VALUES (#{callId}, #{adminId}, #{content}, NOW())
+    </insert>
+
+    <!-- 按呼叫查询处理日志（时间正序，联管理员表取姓名） -->
+    <select id="selectByCallId" resultType="java.util.Map">
+        SELECT l.id,
+               l.call_id        AS callId,
+               l.admin_id       AS adminId,
+               a.name           AS adminName,
+               l.content,
+               DATE_FORMAT(l.create_time, '%Y-%m-%d %H:%i:%s') AS createTime
+        FROM emergency_handle_log l
+        LEFT JOIN admin_info a ON a.id = l.admin_id
+        WHERE l.call_id = #{callId}
+        ORDER BY l.create_time ASC, l.id ASC
+    </select>
+
+</mapper>
