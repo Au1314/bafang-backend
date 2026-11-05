@@ -20,6 +20,7 @@ import com.baffang.user.dto.UpdatePrivacySettingsDTO;
 import com.baffang.user.dto.ResetPasswordDTO;
 import com.baffang.user.mapper.UserMapper;
 import com.baffang.user.service.UserService;
+import com.baffang.user.service.VerificationCodeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -45,6 +46,9 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private AuthenticationManager authenticationManager;
 
+    @Autowired
+    private VerificationCodeService verificationCodeService;
+
     /**
      * 用户注册
      *
@@ -59,7 +63,10 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException(ErrorMsg.PHONE_ALREADY_EXISTS);
         }
 
-        // 2. 开发阶段暂不验证验证码，直接跳过验证
+        // 2. 校验短信验证码（安全整改：服务端比对，防止恶意批量注册）
+        if (!verificationCodeService.verifyCode(registerDTO.getPhone(), registerDTO.getVerifyCode())) {
+            throw new BusinessException(ErrorMsg.CAPTCHA_ERROR);
+        }
 
         // 3. 密码加密
         String encryptedPassword = PasswordUtil.encryptPassword(registerDTO.getPassword());
@@ -241,8 +248,8 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public LoginVO loginByCode(LoginByCodeDTO loginByCodeDTO) {
-        // 1. 检查验证码是否为空（开发阶段只要不为空就直接登录成功）
-        if (loginByCodeDTO.getCode() == null || loginByCodeDTO.getCode().isEmpty()) {
+        // 1. 校验短信验证码（安全整改：服务端比对，一次性使用）
+        if (!verificationCodeService.verifyCode(loginByCodeDTO.getPhone(), loginByCodeDTO.getCode())) {
             throw new BusinessException(ErrorMsg.CAPTCHA_ERROR);
         }
 
@@ -361,8 +368,8 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException(ErrorMsg.ACCOUNT_NOT_FOUND);
         }
 
-        // 2. 开发阶段暂不验证验证码，只检查是否存在
-        if (resetPasswordDTO.getCode() == null || resetPasswordDTO.getCode().isEmpty()) {
+        // 2. 校验短信验证码（安全整改：服务端比对，一次性使用）
+        if (!verificationCodeService.verifyCode(resetPasswordDTO.getPhone(), resetPasswordDTO.getCode())) {
             throw new BusinessException(ErrorMsg.CAPTCHA_ERROR);
         }
 

@@ -102,59 +102,11 @@ public class VehicleAuditController {
    /**
  * 检查管理员权限并返回管理员ID（复用私桩审核的兼容逻辑）
  */
-private Integer checkAdminPermission(HttpServletRequest request, int maxType) {
-    String authHeader = request.getHeader("Authorization");
-    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-        throw new BusinessException(ErrorMsg.USER_NOT_LOGIN);
+    private Integer checkAdminPermission(HttpServletRequest request, int maxType) {
+        // 安全整改：统一委托 AdminGuard——按用户名查库取角色，不再信任 token claims
+        return adminGuard.requireAdmin(maxType);
     }
 
-    String token = authHeader.substring(7).trim();
-
-    try {
-        Claims claims = JwtUtil.parseToken(JwtConstants.SECRET_KEY, token);
-
-        String authType = claims.get(JwtConstants.AUTH_TYPE_CLAIM, String.class);
-        if (!"admin".equals(authType)) {
-            throw new BusinessException(ErrorMsg.NO_PERMISSION);
-        }
-
-        // ========== 1. 管理员类型解析（保留原有逻辑） ==========
-        Integer adminType = null;
-        Object typeObj = claims.get("type");
-        if (typeObj instanceof Number) {
-            adminType = ((Number) typeObj).intValue();
-        }
-
-        if (adminType == null || adminType > maxType) {
-            throw new BusinessException(ErrorMsg.NO_PERMISSION);
-        }
-
-        // ========== 2. 管理员ID解析（替换为私桩审核的兼容逻辑） ==========
-        // 优先解析 adminId
-        Object adminIdObj = claims.get("adminId");
-        if (adminIdObj instanceof Number) {
-            return ((Number) adminIdObj).intValue();
-        }
-        
-        // 兼容 userId（JwtConstants.USER_ID_CLAIM）
-        Object userIdObj = claims.get(JwtConstants.USER_ID_CLAIM);
-        if (userIdObj instanceof Number) {
-            return ((Number) userIdObj).intValue();
-        }
-        
-        // 最后兼容旧的 id（可选）
-        Object idObj = claims.get("id");
-        if (idObj instanceof Number) {
-            return ((Number) idObj).intValue();
-        }
-
-        // ========== 3. 解析不到ID抛异常（保留原有逻辑） ==========
-        throw new BusinessException("token中管理员ID为空");
-
-    } catch (BusinessException e) {
-        throw e;
-    } catch (Exception e) {
-        throw new BusinessException(ErrorMsg.TOKEN_INVALID);
-    }
-}
+    @Autowired
+    private com.baffang.framework.permission.AdminGuard adminGuard;
 }

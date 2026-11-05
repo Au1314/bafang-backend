@@ -72,42 +72,10 @@ public class SystemLogController {
      * 检查管理员权限
      */
     private void checkAdminPermission(HttpServletRequest request, int maxType) {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new BusinessException(ErrorMsg.USER_NOT_LOGIN);
-        }
-
-        String token = authHeader.substring(7).trim();
-
-        try {
-            Claims claims = JwtUtil.parseToken(JwtConstants.SECRET_KEY, token);
-
-            String authType = claims.get(JwtConstants.AUTH_TYPE_CLAIM, String.class);
-            if (!"admin".equals(authType)) {
-                throw new BusinessException(ErrorMsg.NO_PERMISSION);
-            }
-
-            Integer adminType = null;
-            Object typeObj = claims.get("type");
-            if (typeObj instanceof Number) {
-                adminType = ((Number) typeObj).intValue();
-            }
-
-            if (adminType == null) {
-                Object roleObj = claims.get(JwtConstants.ROLE_CLAIM);
-                if (roleObj instanceof Number) {
-                    adminType = ((Number) roleObj).intValue();
-                }
-            }
-
-            if (adminType == null || adminType > maxType) {
-                throw new BusinessException(ErrorMsg.NO_PERMISSION);
-            }
-
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new BusinessException(ErrorMsg.TOKEN_INVALID);
-        }
+        // 安全整改：统一委托 AdminGuard——按用户名查库取角色，不再信任 token claims
+        adminGuard.requireAdmin(maxType);
     }
+
+    @Autowired
+    private com.baffang.framework.permission.AdminGuard adminGuard;
 }

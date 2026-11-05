@@ -59,8 +59,11 @@ java -jar target\Baffang-0.0.1-SNAPSHOT.jar --spring.profiles.active=local
 |---|---|
 | `${DB_USERNAME}` | 数据库用户名（默认 `root`） |
 | `${DB_PASSWORD}` | 数据库密码 |
+| `${JWT_SECRET}` | JWT 签名密钥（HS256，≥32 字节随机串；未配置时应用启动失败） |
 | `${DEEPSEEK_API_KEY}` | DeepSeek API Key |
 | `${AMAP_API_KEY}` | 高德地图 API Key |
+
+> 安全整改说明：JWT 密钥已不再硬编码在代码中（由 `JwtKeyConfig` 启动时注入校验）；短信验证码只保存在服务端并强制校验（演示可设 `VERIFICATION_CODE_ENABLED=false` 退回旧行为）；管理端接口权限统一由 `AdminGuard` 按库校验。
 
 本地真实值请写入 `src/main/resources/application-local.properties`（已 gitignore），或通过环境变量注入。
 

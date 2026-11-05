@@ -168,68 +168,12 @@ public Result<PageInfo<ConversationListVO>> getMyConversations(
      * @return 当前管理员ID
      */
     private Integer checkAdminPermission(HttpServletRequest request, int maxType) {
-        // 1. 获取请求头中的Token
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new BusinessException(ErrorMsg.USER_NOT_LOGIN);
-        }
-        
-        // 2. 提取Token（去掉Bearer前缀）
-        String token = authHeader.substring(7).trim();
-        
-        try {
-            // 3. 解析JWT Token
-            Claims claims = JwtUtil.parseToken(JwtConstants.SECRET_KEY, token);
-            
-            // 4. 校验是否为管理员Token
-            String authType = claims.get(JwtConstants.AUTH_TYPE_CLAIM, String.class);
-            if (!"admin".equals(authType)) {
-                throw new BusinessException(ErrorMsg.NO_PERMISSION);
-            }
-            
-            // 5. 获取管理员类型并校验权限
-            Integer adminType = null;
-            Object typeObj = claims.get("type");
-            if (typeObj instanceof Number) {
-                adminType = ((Number) typeObj).intValue();
-            }
-            
-            // 兼容role字段的情况
-            if (adminType == null) {
-                Object roleObj = claims.get(JwtConstants.ROLE_CLAIM);
-                if (roleObj instanceof Number) {
-                    adminType = ((Number) roleObj).intValue();
-                }
-            }
-            
-            // 校验管理员类型是否符合权限要求
-            if (adminType == null || adminType > maxType) {
-                throw new BusinessException(ErrorMsg.NO_PERMISSION);
-            }
-            
-            // 6. 获取管理员ID
-            Object adminIdObj = claims.get("adminId");
-            if (adminIdObj instanceof Number) {
-                return ((Number) adminIdObj).intValue();
-            }
-            
-            // 兼容userId字段的情况
-            Object userIdObj = claims.get(JwtConstants.USER_ID_CLAIM);
-            if (userIdObj instanceof Number) {
-                return ((Number) userIdObj).intValue();
-            }
-            
-            // Token中无有效管理员ID
-            throw new BusinessException(ErrorMsg.TOKEN_INVALID);
-        } catch (BusinessException e) {
-            // 业务异常直接抛出
-            throw e;
-        } catch (Exception e) {
-            // 其他异常（Token过期、解析失败等）
-            log.error("客服管理模块Token解析失败", e);
-            throw new BusinessException(ErrorMsg.TOKEN_INVALID);
-        }
+        // 安全整改：统一委托 AdminGuard——按用户名查库取角色，不再信任 token claims
+        return adminGuard.requireAdmin(maxType);
     }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.baffang.framework.permission.AdminGuard adminGuard;
 
 
     // ==================== 客服统计 ====================

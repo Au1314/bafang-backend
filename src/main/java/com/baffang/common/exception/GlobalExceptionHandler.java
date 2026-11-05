@@ -65,27 +65,23 @@ public class GlobalExceptionHandler {
 
     /**
      * 捕获MYSQL语句异常
-     * 
+     * 安全整改：SQL 细节（错误描述/SQLState/错误码）只进服务端日志，不再回传客户端
+     *
      * @param e SQL异常
      * @return
      */
     @ExceptionHandler(SQLException.class)
     public Result sqlExceptionHandler(SQLException e, HttpServletResponse response) {
-        // Map<异常序号,Map<异常字段,具体信息>>
-        Map<String, Map<String, String>> errorMessage = new HashMap<>();
-        // 遍历所有链式异常
-        SQLException currentEx = e;
+        log.error("SQL异常: {}", e.getMessage(), e);
+        SQLException currentEx = e.getNextException();
         int exIndex = 1;
         while (currentEx != null) {
-            Map<String, String> aError = new HashMap<>();
-            aError.put("错误描述", currentEx.getMessage());
-            aError.put("SQL状态", currentEx.getSQLState());
-            aError.put("错误代码", String.valueOf(currentEx.getErrorCode()));
-            errorMessage.put("异常" + String.valueOf(exIndex), aError);
+            log.error("SQL异常链[{}]: message={}, sqlState={}, errorCode={}",
+                    exIndex++, currentEx.getMessage(), currentEx.getSQLState(), currentEx.getErrorCode());
             currentEx = currentEx.getNextException();
-            exIndex++;
         }
-        return Result.error(ErrorMsg.SQL_EXCEPTION.getCode(), ErrorMsg.SQL_EXCEPTION.getMsg(), errorMessage);
+        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        return Result.error(ErrorMsg.SQL_EXCEPTION.getCode(), ErrorMsg.SQL_EXCEPTION.getMsg());
     }
 
     /**
@@ -114,6 +110,16 @@ public class GlobalExceptionHandler {
         } else {
             return Result.error(ErrorMsg.LOGIN_FAILED);
         }
+    }
+
+    /**
+     * 兜底：未预期的异常统一返回 500，不向客户端泄露内部细节
+     */
+    @ExceptionHandler(Exception.class)
+    public Result unexpectedExceptionHandler(Exception e, HttpServletResponse response) {
+        log.error("未处理异常: {}", e.getMessage(), e);
+        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        return Result.error(500, "服务器内部错误，请稍后重试");
     }
 
 }

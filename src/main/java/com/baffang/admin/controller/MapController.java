@@ -21,6 +21,9 @@ public class MapController {
 
     private final AmapService amapService;
 
+    // 安全整改：补上管理员身份校验（此前仅"已登录"即可调用）
+    private final com.baffang.framework.permission.AdminGuard adminGuard;
+
     @GetMapping("/distance")
     @Operation(summary = "计算两点之间的驾车导航距离")
     public Result<Map<String, Object>> calculateDistance(
@@ -28,7 +31,8 @@ public class MapController {
             @Parameter(description = "起点纬度") @RequestParam Double originLat,
             @Parameter(description = "终点经度") @RequestParam Double destLng,
             @Parameter(description = "终点纬度") @RequestParam Double destLat) {
-        
+
+        adminGuard.requireAdmin(com.baffang.framework.permission.AdminGuard.ANY_ADMIN);
         Long distanceMeters = amapService.getDrivingDistance(originLng, originLat, destLng, destLat);
         
         Map<String, Object> result = new HashMap<>();

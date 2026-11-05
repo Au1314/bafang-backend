@@ -159,27 +159,10 @@ public class AdminNoticeController {
      * 从请求中获取管理员ID
      */
     private Integer getAdminIdFromRequest(HttpServletRequest request) {
-        String token = request.getHeader("Authorization");
-        if (token != null && token.startsWith("Bearer ")) {
-            token = token.substring(7).trim();
-            try {
-                Claims claims = JwtUtil.parseToken(JwtConstants.SECRET_KEY, token);
-
-                // 尝试获取 adminId
-                Integer adminId = claims.get("adminId", Integer.class);
-                if (adminId != null) {
-                    return adminId;
-                }
-
-                // 兼容：尝试获取 userId
-                Long userId = claims.get(JwtConstants.USER_ID_CLAIM, Long.class);
-                if (userId != null) {
-                    return userId.intValue();
-                }
-            } catch (Exception e) {
-                log.error("解析Token失败", e);
-            }
-        }
-        throw new BusinessException(ErrorMsg.USER_NOT_LOGIN);
+        // 安全整改：统一委托 AdminGuard——按用户名查库确认管理员身份，防用户 token 借 adminId/userId 撞号越权
+        return adminGuard.requireAdmin(com.baffang.framework.permission.AdminGuard.ANY_ADMIN);
     }
+
+    @Autowired
+    private com.baffang.framework.permission.AdminGuard adminGuard;
 }

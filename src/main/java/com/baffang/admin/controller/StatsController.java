@@ -55,51 +55,13 @@ public class StatsController {
  * @param request 请求
  * @param maxType 允许的最大 type 值（type 越小权限越大）
  */
-private void checkAdminPermission(HttpServletRequest request, int maxType) {
-    String authHeader = request.getHeader("Authorization");
-    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-        throw new BusinessException(ErrorMsg.USER_NOT_LOGIN);
+    private void checkAdminPermission(HttpServletRequest request, int maxType) {
+        // 安全整改：统一委托 AdminGuard——按用户名查库取角色，不再信任 token claims
+        adminGuard.requireAdmin(maxType);
     }
-    
-    String token = authHeader.substring(7).trim();
-    
-    try {
-        Claims claims = JwtUtil.parseToken(JwtConstants.SECRET_KEY, token);
-        
-        // 验证是否为管理员 Token
-        String authType = claims.get(JwtConstants.AUTH_TYPE_CLAIM, String.class);
-        if (!"admin".equals(authType)) {
-            throw new BusinessException(ErrorMsg.NO_PERMISSION);
-        }
-        
-        // 获取管理员类型 - 登录时存的是 "type"，不是 ROLE_CLAIM
-        Integer adminType = null;
-        
-        // 优先读取 "type"
-        Object typeObj = claims.get("type");
-        if (typeObj instanceof Number) {
-            adminType = ((Number) typeObj).intValue();
-        }
-        
-        // 兼容 ROLE_CLAIM
-        if (adminType == null) {
-            Object roleObj = claims.get(JwtConstants.ROLE_CLAIM);
-            if (roleObj instanceof Number) {
-                adminType = ((Number) roleObj).intValue();
-            }
-        }
-        
-        // 检查权限
-        if (adminType == null || adminType > maxType) {
-            throw new BusinessException(ErrorMsg.NO_PERMISSION);
-        }
-        
-    } catch (BusinessException e) {
-        throw e;
-    } catch (Exception e) {
-        throw new BusinessException(ErrorMsg.TOKEN_INVALID);
-    }
-}
+
+    @Autowired
+    private com.baffang.framework.permission.AdminGuard adminGuard;
 
 
 

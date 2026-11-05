@@ -94,54 +94,10 @@ public class AuditRecordViewController {
     // ==================== JWT权限校验方法 ====================
 
     private Integer checkAdminPermission(HttpServletRequest request, int maxType) {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new BusinessException(ErrorMsg.USER_NOT_LOGIN);
-        }
-        
-        String token = authHeader.substring(7).trim();
-        
-        try {
-            Claims claims = JwtUtil.parseToken(JwtConstants.SECRET_KEY, token);
-            
-            String authType = claims.get(JwtConstants.AUTH_TYPE_CLAIM, String.class);
-            if (!"admin".equals(authType)) {
-                throw new BusinessException(ErrorMsg.NO_PERMISSION);
-            }
-            
-            Integer adminType = null;
-            Object typeObj = claims.get("type");
-            if (typeObj instanceof Number) {
-                adminType = ((Number) typeObj).intValue();
-            }
-            
-            if (adminType == null) {
-                Object roleObj = claims.get(JwtConstants.ROLE_CLAIM);
-                if (roleObj instanceof Number) {
-                    adminType = ((Number) roleObj).intValue();
-                }
-            }
-            
-            if (adminType == null || adminType > maxType) {
-                throw new BusinessException(ErrorMsg.NO_PERMISSION);
-            }
-            
-            Object adminIdObj = claims.get("adminId");
-            if (adminIdObj instanceof Number) {
-                return ((Number) adminIdObj).intValue();
-            }
-            
-            Object userIdObj = claims.get(JwtConstants.USER_ID_CLAIM);
-            if (userIdObj instanceof Number) {
-                return ((Number) userIdObj).intValue();
-            }
-            
-            throw new BusinessException(ErrorMsg.TOKEN_INVALID);
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Token解析失败", e);
-            throw new BusinessException(ErrorMsg.TOKEN_INVALID);
-        }
+        // 安全整改：统一委托 AdminGuard——按用户名查库取角色，不再信任 token claims
+        return adminGuard.requireAdmin(maxType);
     }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.baffang.framework.permission.AdminGuard adminGuard;
 }

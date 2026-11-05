@@ -5,6 +5,7 @@ import com.baffang.common.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
@@ -66,37 +67,63 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    /** 登录/注册/公开资源等无需认证的接口 */
+    private static final String[] PUBLIC_ENDPOINTS = {
+            AuthConstants.USER_LOGIN_URL,
+            AuthConstants.ADMIN_LOGIN_URL,
+            AuthConstants.USER_REGISTER_URL,
+            AuthConstants.USER_CLIENT_REGISTER_URL,
+            AuthConstants.USER_CLIENT_LOGIN_URL,
+            AuthConstants.USER_CLIENT_LOGIN_CODE_URL,
+            AuthConstants.RESET_PASSWORD_URL,
+            AuthConstants.USER_CLIENT_RESET_PASSWORD_URL,
+            AuthConstants.REFRESH_TOKEN_URL,
+            AuthConstants.ADMIN_REGISTER_URL,
+            AuthConstants.ADMIN_LOGOUT_URL,
+            AuthConstants.USER_VERIFICATION_CODE_URL,
+            AuthConstants.FILE_DOWNLOAD_URL,
+            "/ws/**",
+            "/files/**"
+    };
+
+    /** 接口文档端点：仅开发环境暴露（安全整改：生产环境不再公开 doc.html / swagger） */
+    private static final String[] DOC_ENDPOINTS = {
+            "/swagger-ui/**",
+            "/v3/api-docs/**",
+            "/doc.html"
+    };
+
+    private SecurityFilterChain buildChain(HttpSecurity http, boolean exposeDocs) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(
-                                AuthConstants.USER_LOGIN_URL,
-                                AuthConstants.ADMIN_LOGIN_URL,
-                                AuthConstants.USER_REGISTER_URL,
-                                AuthConstants.USER_CLIENT_REGISTER_URL,
-                                AuthConstants.USER_CLIENT_LOGIN_URL,
-                                AuthConstants.USER_CLIENT_LOGIN_CODE_URL,
-                                AuthConstants.RESET_PASSWORD_URL,
-                                AuthConstants.USER_CLIENT_RESET_PASSWORD_URL,
-                                AuthConstants.REFRESH_TOKEN_URL,
-                                AuthConstants.ADMIN_REGISTER_URL,
-                                AuthConstants.ADMIN_LOGOUT_URL,
-                                AuthConstants.USER_VERIFICATION_CODE_URL,
-                                AuthConstants.FILE_DOWNLOAD_URL,
-                                "/ws/**",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/files/**",
-                                "/doc.html")
-                        .permitAll()
-                        .anyRequest().authenticated());
+                .authorizeHttpRequests(authorize -> {
+                    authorize.requestMatchers(PUBLIC_ENDPOINTS).permitAll();
+                    if (exposeDocs) {
+                        authorize.requestMatchers(DOC_ENDPOINTS).permitAll();
+                    }
+                    authorize.anyRequest().authenticated();
+                });
 
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /** 生产环境（prod profile）：不暴露接口文档 */
+    @Bean
+    @Order(1)
+    @Profile("prod")
+    public SecurityFilterChain prodSecurityFilterChain(HttpSecurity http) throws Exception {
+        return buildChain(http, false);
+    }
+
+    /** 开发/默认环境：保留 Knife4j 与 Swagger 文档 */
+    @Bean
+    @Order(2)
+    @Profile("!prod")
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        return buildChain(http, true);
     }
 
     @Bean

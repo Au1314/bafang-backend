@@ -295,34 +295,12 @@ public Result<Void> updateInviteCodeStatus(
  * 从请求头中获取管理员ID
  */
 private Integer getAdminIdFromRequest(HttpServletRequest request) {
-    String token = request.getHeader(AuthConstants.AUTHORIZATION_HEADER);
-    if (token != null && token.startsWith(JwtConstants.TOKEN_PREFIX)) {
-        token = token.substring(JwtConstants.TOKEN_PREFIX.length()).trim();
-        
-        try {
-            Claims claims = JwtUtil.parseToken(JwtConstants.SECRET_KEY, token);
-            
-            // 优先尝试新的 adminId，兼容旧的 userId
-            Integer adminId = claims.get("adminId", Integer.class);
-            if (adminId != null) {
-                return adminId;
-            }
-            
-            // 兼容旧 Token
-            Long userId = claims.get(JwtConstants.USER_ID_CLAIM, Long.class);
-            if (userId != null) {
-                return userId.intValue();
-            }
-            
-            throw new BusinessException(ErrorMsg.TOKEN_INVALID);
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new BusinessException(ErrorMsg.TOKEN_INVALID);
-        }
-    }
-    throw new BusinessException(ErrorMsg.USER_NOT_LOGIN);
+    // 安全整改：统一委托 AdminGuard——按用户名查库确认管理员身份，防用户 token 借 adminId/userId 撞号越权
+    return adminGuard.requireAdmin(com.baffang.framework.permission.AdminGuard.ANY_ADMIN);
 }
+
+@Autowired
+private com.baffang.framework.permission.AdminGuard adminGuard;
 
 
     /**

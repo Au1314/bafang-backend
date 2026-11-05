@@ -76,58 +76,10 @@ public class StationAuthController {
      * 检查管理员权限并返回管理员ID
      */
     private Integer checkAdminPermission(HttpServletRequest request, int maxType) {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new BusinessException(ErrorMsg.USER_NOT_LOGIN);
-        }
-        
-        String token = authHeader.substring(7).trim();
-        
-        try {
-            Claims claims = JwtUtil.parseToken(JwtConstants.SECRET_KEY, token);
-            
-            // 验证是否为管理员 Token
-            String authType = claims.get(JwtConstants.AUTH_TYPE_CLAIM, String.class);
-            if (!"admin".equals(authType)) {
-                throw new BusinessException(ErrorMsg.NO_PERMISSION);
-            }
-            
-            // 获取管理员类型
-            Integer adminType = null;
-            Object typeObj = claims.get("type");
-            if (typeObj instanceof Number) {
-                adminType = ((Number) typeObj).intValue();
-            }
-            
-            // 兼容 ROLE_CLAIM
-            if (adminType == null) {
-                Object roleObj = claims.get(JwtConstants.ROLE_CLAIM);
-                if (roleObj instanceof Number) {
-                    adminType = ((Number) roleObj).intValue();
-                }
-            }
-            
-            if (adminType == null || adminType > maxType) {
-                throw new BusinessException(ErrorMsg.NO_PERMISSION);
-            }
-            
-            // 获取管理员ID
-            Object adminIdObj = claims.get("adminId");
-            if (adminIdObj instanceof Number) {
-                return ((Number) adminIdObj).intValue();
-            }
-            
-            // 兼容旧格式
-            Object userIdObj = claims.get(JwtConstants.USER_ID_CLAIM);
-            if (userIdObj instanceof Number) {
-                return ((Number) userIdObj).intValue();
-            }
-            
-            throw new BusinessException(ErrorMsg.TOKEN_INVALID);
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new BusinessException(ErrorMsg.TOKEN_INVALID);
-        }
+        // 安全整改：统一委托 AdminGuard——按用户名查库取角色，不再信任 token claims
+        return adminGuard.requireAdmin(maxType);
     }
+
+    @Autowired
+    private com.baffang.framework.permission.AdminGuard adminGuard;
 }

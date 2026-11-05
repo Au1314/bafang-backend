@@ -23,9 +23,14 @@ public class AIAnalysisController {
     @Autowired
     private AIAnalysisService aiAnalysisService;
 
+    // 安全整改：此前本控制器无任何权限检查，普通用户 token 可直接调用，现统一补上
+    @Autowired
+    private com.baffang.framework.permission.AdminGuard adminGuard;
+
     @ApiOperation("综合数据分析 - 分析所有模块数据")
     @GetMapping("/analysis/all")
     public Result<AIAnalysisResponse> analyzeAll() {
+        adminGuard.requireAdmin(1);
         log.info("请求综合数据分析");
         AIAnalysisResponse response = aiAnalysisService.analyzeAll();
         return response.isSuccess() ? Result.success(response) : Result.error(response.getError());
@@ -34,6 +39,7 @@ public class AIAnalysisController {
     @ApiOperation("模块数据分析 - 分析指定模块数据")
     @PostMapping("/analysis/module")
     public Result<AIAnalysisResponse> analyzeModule(@RequestBody AIAnalysisRequest request) {
+        adminGuard.requireAdmin(1);
         log.info("请求模块分析: module={}, question={}", request.getModule(), request.getQuestion());
         AIAnalysisResponse response = aiAnalysisService.analyzeModule(request);
         return response.isSuccess() ? Result.success(response) : Result.error(response.getError());
@@ -43,6 +49,7 @@ public class AIAnalysisController {
     @PostMapping("/analysis/question")
     public Result<AIAnalysisResponse> analyzeQuestion(
             @ApiParam("分析问题") @RequestBody AIAnalysisRequest request) {
+        adminGuard.requireAdmin(1);
         log.info("请求问题分析: question={}", request.getQuestion());
         
         if (request.getQuestion() == null || request.getQuestion().trim().isEmpty()) {
@@ -57,6 +64,7 @@ public class AIAnalysisController {
     @GetMapping("/analysis/quick")
     public Result<AIAnalysisResponse> quickAnalysis(
             @ApiParam("快速问题") @RequestParam String question) {
+        adminGuard.requireAdmin(1);
         log.info("快速分析: question={}", question);
         
         if (question == null || question.trim().isEmpty()) {

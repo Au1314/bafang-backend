@@ -2,9 +2,10 @@ package com.baffang.common.constant;
 
 public class JwtConstants {
     /**
-     * JWT密钥
+     * JWT签名密钥（安全整改：不再硬编码——由 config/JwtKeyConfig 在启动时从配置注入，
+     * 来源为环境变量 JWT_SECRET 或配置项 jwt.secret；未配置时应用启动失败）
      */
-    public static final String SECRET_KEY = "baffang_secret_key_20240101_secure_jwt_key_256bit";
+    public static volatile String SECRET_KEY;
 
     /**
      * JWT令牌前缀

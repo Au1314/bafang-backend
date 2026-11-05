@@ -178,43 +178,12 @@ public class AdminController {
  * 从请求头中获取管理员ID
  */
 private Integer getAdminIdFromRequest(HttpServletRequest request) {
-    String authHeader = request.getHeader(AuthConstants.AUTHORIZATION_HEADER);
-    if (authHeader == null || !authHeader.startsWith(JwtConstants.TOKEN_PREFIX)) {
-        throw new BusinessException(ErrorMsg.USER_NOT_LOGIN);
-    }
-    
-    String token = authHeader.substring(JwtConstants.TOKEN_PREFIX.length()).trim();
-    
-    try {
-        Claims claims = JwtUtil.parseToken(JwtConstants.SECRET_KEY, token);
-        
-        // 使用 Number 类型兼容 Integer 和 Long
-        // 优先获取 adminId（新格式）
-        Object adminIdObj = claims.get("adminId");
-        if (adminIdObj != null) {
-            if (adminIdObj instanceof Number) {
-                return ((Number) adminIdObj).intValue();
-            }
-        }
-        
-        // 兼容旧格式 userId
-        Object userIdObj = claims.get(JwtConstants.USER_ID_CLAIM);
-        if (userIdObj != null) {
-            if (userIdObj instanceof Number) {
-                return ((Number) userIdObj).intValue();
-            }
-        }
-        
-        log.warn("Token中未找到有效的用户ID, claims: {}", claims);
-        throw new BusinessException(ErrorMsg.TOKEN_INVALID);
-        
-    } catch (BusinessException e) {
-        throw e;
-    } catch (Exception e) {
-        log.error("Token解析异常: {}", e.getMessage());
-        throw new BusinessException(ErrorMsg.TOKEN_INVALID);
-    }
+    // 安全整改：统一委托 AdminGuard——按用户名查库确认管理员身份，防用户 token 借 adminId/userId 撞号越权
+    return adminGuard.requireAdmin(com.baffang.framework.permission.AdminGuard.ANY_ADMIN);
 }
+
+@Autowired
+private com.baffang.framework.permission.AdminGuard adminGuard;
 
 
     /**
