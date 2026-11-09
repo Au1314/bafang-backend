@@ -84,6 +84,13 @@ public class WebSocketSessionManager {
     }
 
     /**
+     * 获取在线用户数量（契约补齐：Dashboard 在线人数统计）
+     */
+    public int getOnlineUserCount() {
+        return userSessions.size();
+    }
+
+    /**
      * 发送消息给指定管理员
      */
     public void sendToAdmin(Integer adminId, String message) {

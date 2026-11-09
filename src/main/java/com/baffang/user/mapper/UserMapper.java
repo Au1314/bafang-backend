@@ -49,10 +49,35 @@ public interface UserMapper {
 
     /**
      * 更新用户隐私设置
-     * 
+     *
      * @param userInfo 用户信息对象
      * @return 更新影响的行数
      */
     int updatePrivacySettings(UserInfo userInfo);
+
+    /**
+     * 扣减余额（订单支付，契约补齐）
+     * 乐观条件：余额充足才扣减，影响行数 0 表示余额不足
+     */
+    @org.apache.ibatis.annotations.Update(
+            "UPDATE user_info SET balance = balance - #{amount}, update_time = NOW() " +
+            "WHERE id = #{userId} AND is_deleted = 0 AND balance >= #{amount}")
+    int deductBalance(@Param("userId") Integer userId, @Param("amount") java.math.BigDecimal amount);
+
+    /**
+     * 扣减积分（订单积分抵扣，契约补齐；1 积分抵 1 元）
+     */
+    @org.apache.ibatis.annotations.Update(
+            "UPDATE user_info SET points = points - #{points}, update_time = NOW() " +
+            "WHERE id = #{userId} AND is_deleted = 0 AND points >= #{points}")
+    int deductPoints(@Param("userId") Integer userId, @Param("points") Integer points);
+
+    /**
+     * 增加积分（充电完成按电量奖励碳积分，契约补齐）
+     */
+    @org.apache.ibatis.annotations.Update(
+            "UPDATE user_info SET points = points + #{points}, update_time = NOW() " +
+            "WHERE id = #{userId} AND is_deleted = 0")
+    int addPoints(@Param("userId") Integer userId, @Param("points") Integer points);
 
 }

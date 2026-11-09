@@ -4,6 +4,7 @@ import com.baffang.admin.service.StatsService;
 import com.baffang.admin.vo.PlatformStatsVO;
 import com.baffang.admin.vo.ScreenStatsVO;
 import com.baffang.admin.vo.StationDistributionVO;
+import com.baffang.admin.websocket.WebSocketSessionManager;
 import com.baffang.common.constant.JwtConstants;
 import com.baffang.common.enums.ErrorMsg;
 import com.baffang.common.exception.BusinessException;
@@ -26,6 +27,9 @@ public class StatsController {
 
     @Autowired
     private StatsService statsService;
+
+    @Autowired
+    private WebSocketSessionManager webSocketSessionManager;
 
     /**
      * 获取平台统计数据
@@ -61,6 +65,20 @@ public class StatsController {
     public Result<ScreenStatsVO> getScreenStats(HttpServletRequest request) {
         checkAdminPermission(request, 1);
         return Result.success(statsService.getScreenStats());
+    }
+
+    /**
+     * 在线人数统计（契约补齐：Dashboard 在线用户数真实来源）
+     * 口径：WS 客服通道当前在线的管理员数与用户数
+     */
+    @GetMapping("/online")
+    @Operation(summary = "在线人数统计")
+    public Result<java.util.Map<String, Integer>> getOnlineStats(HttpServletRequest request) {
+        checkAdminPermission(request, 1);
+        java.util.Map<String, Integer> stats = new java.util.HashMap<>();
+        stats.put("onlineAdmins", webSocketSessionManager.getOnlineAdminCount());
+        stats.put("onlineUsers", webSocketSessionManager.getOnlineUserCount());
+        return Result.success(stats);
     }
 
      /**
