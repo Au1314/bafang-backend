@@ -36,6 +36,22 @@ public interface OrderService {
     void payOrder(Integer orderId, Integer userId, Integer payMethod);
 
     /**
+     * 创建外部渠道支付凭据（契约补齐：真实支付）
+     * 订单状态不变，等待渠道异步通知完成支付
+     *
+     * @param payMethod 1-支付宝（沙箱）
+     * @return 支付宝收银台跳转 URL
+     */
+    String createGatewayPayUrl(Integer orderId, Integer userId, Integer payMethod);
+
+    /**
+     * 处理支付宝异步通知（验签 + 幂等入账）
+     *
+     * @return true 表示通知有效且处理成功（渠道方期待响应 success）
+     */
+    boolean handleAlipayNotify(java.util.Map<String, String> params);
+
+    /**
      * 取消订单（0/2 → 4-已取消）
      */
     void cancelOrder(Integer orderId, Integer userId);

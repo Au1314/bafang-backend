@@ -29,6 +29,7 @@ public class VerificationCodeController {
      */
     @PostMapping("/client/getVerificationcode")
     @RequirePermission(needLogin = false, needPermission = false)
+    @com.baffang.common.ratelimit.RateLimit(limit = 5, windowSeconds = 60) // 防短信轰炸：60秒5次/IP（服务层另有60秒同号限发）
     public Result<Void> getVerificationCode(@RequestBody GetVerificationCodeDTO getVerificationCodeDTO) {
         // 调用Service层方法生成并保存验证码
         verificationCodeService.sendVerificationCode(getVerificationCodeDTO.getPhone());

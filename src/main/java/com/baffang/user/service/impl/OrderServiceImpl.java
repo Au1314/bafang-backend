@@ -5,6 +5,8 @@ import com.baffang.common.entity.UserInfo;
 import com.baffang.common.exception.BusinessException;
 import com.baffang.user.mapper.OrderMapper;
 import com.baffang.user.mapper.UserMapper;
+import com.baffang.user.pay.AlipaySandboxGateway;
+import com.baffang.user.pay.PayGateway;
 import com.baffang.user.service.OrderService;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
@@ -39,6 +41,7 @@ public class OrderServiceImpl implements OrderService {
 
     private final OrderMapper orderMapper;
     private final UserMapper userMapper;
+    private final AlipaySandboxGateway alipayGateway;
 
     @Override
     public Order createOrder(Integer userId, Integer orderType, Integer chargingStationId,
@@ -158,6 +161,50 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException("订单状态已变更，支付未完成，请刷新重试");
         }
         log.info("订单[{}]支付完成，方式={}，金额={}", order.getOrderNo(), payMethod, amount);
+    }
+
+    @Override
+    public String createGatewayPayUrl(Integer orderId, Integer userId, Integer payMethod) {
+        Order order = requireOrder(orderId, userId);
+        if (order.getStatus() != 0 && order.getStatus() != 2) {
+            throw new BusinessException("当前订单状态不可支付");
+        }
+        if (!alipayGateway.enabled()) {
+            throw new BusinessException("支付宝支付未启用：请配置沙箱参数（ALIPAY_APP_ID 等环境变量）");
+        }
+        if (!alipayGateway.payMethod().equals(payMethod)) {
+            throw new BusinessException("不支持的支付渠道");
+        }
+        return alipayGateway.createPay(order, null);
+    }
+
+    @Override
+    public boolean handleAlipayNotify(Map<String, String> params) {
+        PayGateway.NotifyResult result = alipayGateway.verifyNotify(params);
+        if (result == null) {
+            return false;
+        }
+        Order order = orderMapper.selectByOrderNo(result.orderNo());
+        if (order == null) {
+            log.warn("支付宝通知的订单不存在：{}", result.orderNo());
+            return false;
+        }
+        // 幂等：已完成的订单重复通知直接按成功处理
+        if (order.getStatus() == 3) {
+            log.info("订单[{}]已完成，重复通知幂等处理", order.getOrderNo());
+            return true;
+        }
+        // 金额校验：实付不得低于应付
+        BigDecimal payable = order.getTotalAmount() == null ? BigDecimal.ZERO : order.getTotalAmount();
+        if (result.paidAmount().compareTo(payable) < 0) {
+            log.warn("通知金额低于应付：{} < {}，orderNo={}", result.paidAmount(), payable, order.getOrderNo());
+            return false;
+        }
+        boolean ok = orderMapper.pay(order.getId(), 1, payable) > 0;
+        if (ok) {
+            log.info("订单[{}]支付宝通知入账成功，金额={}", order.getOrderNo(), payable);
+        }
+        return ok;
     }
 
     @Override

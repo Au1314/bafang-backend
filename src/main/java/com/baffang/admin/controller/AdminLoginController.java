@@ -54,6 +54,7 @@ public class AdminLoginController {
      * @return 登录结果
      */
     @PostMapping(AuthConstants.ADMIN_LOGIN_URL)
+    @com.baffang.common.ratelimit.RateLimit(limit = 10, windowSeconds = 60) // 防爆破：60秒10次/IP
     public Result<TokenDTO> login(@RequestBody LoginDTO loginDTO) {
         // 创建认证令牌
         UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(

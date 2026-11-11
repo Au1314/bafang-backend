@@ -1,5 +1,6 @@
 package com.baffang.config;
 
+import com.baffang.common.ratelimit.RateLimitInterceptor;
 import com.baffang.framework.permission.interceptor.PermissionInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
@@ -7,8 +8,8 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * 权限拦截器配置类
- * 用于将PermissionInterceptor注册到Spring的拦截器链中
+ * 拦截器配置类
+ * 注册：限流拦截器（真实可运营整改）+ 权限拦截器
  */
 @Configuration
 public class PermissionInterceptorConfig implements WebMvcConfigurer {
@@ -16,9 +17,16 @@ public class PermissionInterceptorConfig implements WebMvcConfigurer {
     @Autowired
     private PermissionInterceptor permissionInterceptor;
 
+    @Autowired
+    private RateLimitInterceptor rateLimitInterceptor;
+
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // 注册权限拦截器
+        // 限流拦截器：先于权限拦截器执行，尽早拒绝滥用流量
+        registry.addInterceptor(rateLimitInterceptor)
+                .addPathPatterns("/api/**");
+
+        // 权限拦截器
         registry.addInterceptor(permissionInterceptor)
                 // 拦截所有请求
                 .addPathPatterns("/**")
@@ -30,7 +38,7 @@ public class PermissionInterceptorConfig implements WebMvcConfigurer {
                         "/api/v1/admin/login",
                         "/api/v1/reset-password",
                         "/api/v1/refresh-token",
-                        
+
                         // Swagger相关
                         "/swagger-ui/**",
                         "/v3/api-docs/**",

@@ -82,6 +82,8 @@ public class SecurityConfig {
             AuthConstants.ADMIN_LOGOUT_URL,
             AuthConstants.USER_VERIFICATION_CODE_URL,
             AuthConstants.FILE_DOWNLOAD_URL,
+            // 支付宝异步通知：公开端点以 RSA2 验签作为身份与完整性保障（签名即鉴权）
+            "/api/v1/user/order/pay/notify/*",
             "/ws/**",
             "/files/**"
     };

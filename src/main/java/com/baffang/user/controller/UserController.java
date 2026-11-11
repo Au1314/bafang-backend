@@ -1,6 +1,7 @@
 package com.baffang.user.controller;
 
 import com.baffang.common.constant.JwtConstants;
+import com.baffang.common.ratelimit.RateLimit;
 import com.baffang.common.result.Result;
 import com.baffang.common.util.JwtUtil;
 import com.baffang.framework.permission.annotation.RequirePermission;
@@ -43,6 +44,7 @@ public class UserController {
      */
     @PostMapping("/client/register")
     @RequirePermission(needLogin = false, needPermission = false)
+    @RateLimit(limit = 5, windowSeconds = 60) // 防批量注册：60秒5次/IP
     public Result<RegisterVO> register(@RequestBody RegisterDTO registerDTO) {
         // 调用Service层方法进行注册
         RegisterVO registerVO = userService.register(registerDTO);
@@ -60,6 +62,7 @@ public class UserController {
      */
     @PostMapping("/client/login/password")
     @RequirePermission(needLogin = false, needPermission = false)
+    @RateLimit(limit = 10, windowSeconds = 60) // 防爆破
     public Result<LoginVO> login(@RequestBody LoginDTO loginDTO) {
         // 调用Service层方法进行登录
         LoginVO loginVO = userService.login(loginDTO);
@@ -77,6 +80,7 @@ public class UserController {
      */
     @PostMapping("/client/login/code")
     @RequirePermission(needLogin = false, needPermission = false)
+    @RateLimit(limit = 10, windowSeconds = 60) // 防爆破
     public Result<LoginVO> loginByCode(@RequestBody LoginByCodeDTO loginByCodeDTO) {
         // 调用Service层方法进行验证码登录
         LoginVO loginVO = userService.loginByCode(loginByCodeDTO);
@@ -216,6 +220,7 @@ public class UserController {
      */
     @PutMapping("/client/ResetPassword")
     @RequirePermission(needLogin = false, needPermission = false)
+    @RateLimit(limit = 5, windowSeconds = 60) // 重置密码敏感操作：60秒5次/IP
     public Result<?> resetPassword(@RequestBody ResetPasswordDTO resetPasswordDTO) {
         // 1. 调用Service层方法重置密码
         userService.resetPassword(resetPasswordDTO);

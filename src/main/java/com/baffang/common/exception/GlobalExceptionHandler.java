@@ -113,6 +113,17 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 请求体媒体类型不支持（如误用 text/plain 调 JSON 端点）→ 415 友好提示
+     */
+    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
+    public Result mediaTypeHandler(org.springframework.web.HttpMediaTypeNotSupportedException e,
+                                   HttpServletResponse response) {
+        log.warn("不支持的媒体类型: {}", e.getMessage());
+        response.setStatus(HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE);
+        return Result.error(415, "请求格式不正确：请使用 application/json");
+    }
+
+    /**
      * 兜底：未预期的异常统一返回 500，不向客户端泄露内部细节
      */
     @ExceptionHandler(Exception.class)

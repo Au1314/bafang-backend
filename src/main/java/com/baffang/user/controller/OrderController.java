@@ -102,12 +102,33 @@ public class OrderController {
     }
 
     @PostMapping("/{id}/pay")
-    @Operation(summary = "支付订单")
-    public Result<Void> pay(@PathVariable Integer id,
-                            @RequestBody OrderPayDTO dto,
-                            @RequestHeader("Authorization") String authorization) {
-        orderService.payOrder(id, currentUserId(authorization), dto.getPayMethod());
+    @Operation(summary = "支付订单", description = "余额/积分同步入账；支付宝返回收银台跳转 URL，等待异步通知入账")
+    public Result<Object> pay(@PathVariable Integer id,
+                              @RequestBody OrderPayDTO dto,
+                              @RequestHeader("Authorization") String authorization) {
+        Integer userId = currentUserId(authorization);
+        if (dto.getPayMethod() == null) {
+            throw new BusinessException("请选择支付方式");
+        }
+        // 外部渠道（1-支付宝）：返回支付凭据，订单等待异步通知
+        if (Integer.valueOf(1).equals(dto.getPayMethod())) {
+            String payUrl = orderService.createGatewayPayUrl(id, userId, dto.getPayMethod());
+            return Result.success(Map.of("payMethod", 1, "payUrl", payUrl));
+        }
+        // 内部账务（2-余额，3-积分）：事务内同步入账
+        orderService.payOrder(id, userId, dto.getPayMethod());
         return Result.success();
+    }
+
+    /**
+     * 支付宝异步通知（公开端点：以 RSA2 验签作为身份与完整性保障，签名即鉴权）
+     * 渠道方要求响应纯文本 success 才停止重发
+     */
+    @PostMapping("/pay/notify/alipay")
+    @Operation(summary = "支付宝异步通知", hidden = true)
+    public String alipayNotify(@RequestParam java.util.Map<String, String> params) {
+        boolean ok = orderService.handleAlipayNotify(params);
+        return ok ? "success" : "fail";
     }
 
     @PostMapping("/{id}/cancel")

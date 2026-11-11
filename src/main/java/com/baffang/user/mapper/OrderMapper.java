@@ -38,6 +38,17 @@ public interface OrderMapper {
             "FROM `order` WHERE id = #{id} AND is_deleted = 0")
     Order selectById(@Param("id") Integer id);
 
+    @Select("SELECT id, order_no AS orderNo, user_id AS userId, order_type AS orderType, " +
+            "charging_station_id AS chargingStationId, charging_station_type AS chargingStationType, " +
+            "v2v_call_id AS v2vCallId, start_time AS startTime, end_time AS endTime, duration, " +
+            "electricity, unit_price AS unitPrice, electricity_fee AS electricityFee, " +
+            "service_fee AS serviceFee, discount_amount AS discountAmount, " +
+            "total_amount AS totalAmount, actual_amount AS actualAmount, status, " +
+            "pay_time AS payTime, pay_method AS payMethod, remark, " +
+            "create_time AS createTime, update_time AS updateTime " +
+            "FROM `order` WHERE order_no = #{orderNo} AND is_deleted = 0")
+    Order selectByOrderNo(@Param("orderNo") String orderNo);
+
     /** 开始充电：待支付(0) → 充电中(1)，乐观条件防并发重复开始 */
     @Update("UPDATE `order` SET status = 1, start_time = NOW(), update_time = NOW() " +
             "WHERE id = #{id} AND status = 0 AND is_deleted = 0")

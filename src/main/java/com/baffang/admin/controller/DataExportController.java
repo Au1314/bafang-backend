@@ -2,6 +2,7 @@ package com.baffang.admin.controller;
 
 import com.baffang.admin.service.DataExportService;
 import com.baffang.common.annotation.SystemLog;
+import com.baffang.common.ratelimit.RateLimit;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,6 +34,7 @@ public class DataExportController {
     @PostMapping("/audit-records")
     @Operation(summary = "导出审核记录")
     @SystemLog(module = "数据导出", action = "导出审核记录", saveResult = false)
+    @RateLimit(limit = 10, windowSeconds = 60)
     public ResponseEntity<byte[]> exportAuditRecords(
             @RequestBody(required = false) Map<String, Object> params,
             HttpServletRequest request) {
@@ -45,6 +47,7 @@ public class DataExportController {
     @PostMapping("/order-user")
     @Operation(summary = "导出用户数据")
     @SystemLog(module = "数据导出", action = "导出用户数据", saveResult = false)
+    @RateLimit(limit = 10, windowSeconds = 60)
     public ResponseEntity<byte[]> exportUsers(HttpServletRequest request) {
         return dataExportService.exportUsers();
     }
@@ -55,6 +58,7 @@ public class DataExportController {
     @PostMapping("/order-details")
     @Operation(summary = "导出订单明细")
     @SystemLog(module = "数据导出", action = "导出订单明细", saveResult = false)
+    @RateLimit(limit = 10, windowSeconds = 60)
     public ResponseEntity<byte[]> exportOrders(
             @RequestBody(required = false) Map<String, Object> params,
             HttpServletRequest request) {
