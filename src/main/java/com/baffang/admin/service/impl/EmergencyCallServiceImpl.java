@@ -10,7 +10,10 @@ import com.baffang.admin.service.EmergencyCallService;
 import com.baffang.admin.vo.*;
 import com.baffang.common.entity.AdminInfo;
 import com.baffang.common.entity.EmergencyHandleLog;
+import com.baffang.common.entity.UserInfo;
 import com.baffang.common.exception.BusinessException;
+import com.baffang.common.sms.SmsSender;
+import com.baffang.user.mapper.UserMapper;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +38,8 @@ public class EmergencyCallServiceImpl implements EmergencyCallService {
     private final AdminNoticeService noticeService;  // 新增
     private final AdminMapper adminMapper;  // 新增，用于获取客服姓名
     private final EmergencyHandleLogMapper emergencyHandleLogMapper;  // 处理日志持久化
+    private final UserMapper userMapper;  // 触达整改：查呼叫用户手机号
+    private final SmsSender smsSender;  // 触达整改：紧急呼叫短信出口
 
     // ==================== 待响应列表（支持导航距离排序） ====================
 
@@ -360,8 +365,27 @@ public Page<EmergencyCallListVO> getCallList(EmergencyCallQueryDTO queryDTO) {
                     "紧急呼叫已响应",
                     String.format("您的紧急呼叫已被 %s 响应，正在前往您的位置，请保持电话畅通。", adminName)
             );
+
+            // 触达整改：紧急场景同步短信（站内信用户可能不看）
+            sendUserSms(userId, String.format(
+                    "【八方互充】您的紧急呼叫已被%s响应，请保持电话畅通。", adminName));
         } catch (Exception e) {
             log.error("发送紧急呼叫响应通知失败: callId={}", callId, e);
+        }
+    }
+
+    /** 给指定用户发短信（短信出口未启用时仅记日志），失败不影响主流程 */
+    private void sendUserSms(Integer userId, String content) {
+        try {
+            UserInfo user = userMapper.selectById(userId);
+            if (user == null || user.getPhone() == null || user.getPhone().isBlank()) {
+                return;
+            }
+            boolean accepted = smsSender.send(user.getPhone(), null,
+                    "{\"content\":\"" + content + "\"}");
+            log.info("紧急呼叫短信{}: userId={}", accepted ? "已受理" : "受理失败", userId);
+        } catch (Exception e) {
+            log.error("紧急呼叫短信发送失败: userId={}", userId, e);
         }
     }
 

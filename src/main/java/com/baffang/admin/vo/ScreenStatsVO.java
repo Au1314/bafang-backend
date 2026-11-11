@@ -42,6 +42,9 @@ public class ScreenStatsVO {
     /** 故障私桩数量（status=3） */
     private Integer faultPileCount;
 
+    /** 实时充电功率（kW，当前充电中私桩额定功率合计/1000） */
+    private Double realtimePower;
+
     /** 今日紧急呼叫数 */
     private Integer todayEmergencyCalls;
 

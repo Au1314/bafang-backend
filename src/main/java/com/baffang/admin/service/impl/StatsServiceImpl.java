@@ -105,6 +105,9 @@ public class StatsServiceImpl implements StatsService {
             }
         }
         vo.setFaultPileCount(fault);
+        // 实时功率（瓦→千瓦）：当前"已充电"状态私桩额定功率合计
+        Double powerWatts = statsMapper.sumRealtimePower();
+        vo.setRealtimePower(powerWatts == null ? 0.0 : powerWatts / 1000.0);
         vo.setStationStatusDistribution(privateChargeStationMapper.countGroupByStatus());
         vo.setStatsDate(java.sql.Date.valueOf(today));
         return vo;

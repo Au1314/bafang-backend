@@ -113,6 +113,15 @@ public interface StatsMapper {
     
     /** 今日紧急呼叫数 */
     Integer countTodayEmergencyCalls();
+
+    /**
+     * 实时充电功率（瓦）：当前处于"已充电(status=2)"状态私桩的额定功率合计
+     * （真实可运营整改：大屏实时功率指标的真实数据来源）
+     */
+    @org.apache.ibatis.annotations.Select(
+            "SELECT COALESCE(SUM(max_charge_power), 0) FROM private_charge_station " +
+            "WHERE status = 2 AND is_deleted = 0 AND max_charge_power IS NOT NULL")
+    Double sumRealtimePower();
     
     /** 平均响应时间(分钟) */
     Double avgEmergencyResponseTime();

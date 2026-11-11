@@ -1,6 +1,7 @@
 package com.baffang.user.service.impl;
 
 import com.baffang.common.exception.BusinessException;
+import com.baffang.common.sms.SmsSender;
 import com.baffang.user.service.VerificationCodeService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,6 +32,13 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
     private final Map<String, CodeEntry> codeStore = new ConcurrentHashMap<>();
     private final SecureRandom random = new SecureRandom();
 
+    /** 短信出口（触达整改：配置 aliyun + 密钥即真实发送；默认仅记日志） */
+    private final SmsSender smsSender;
+
+    public VerificationCodeServiceImpl(SmsSender smsSender) {
+        this.smsSender = smsSender;
+    }
+
     /**
      * 演示/开发开关：关闭时退回旧行为（验证码非空即通过），生产必须保持 true
      */
@@ -51,8 +59,16 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
         }
         codeStore.put(phone, new CodeEntry(sb.toString(), now));
 
-        // 短信通道接入后在此实际发送；当前仅记录到服务端日志，绝不返回给前端
-        log.info("验证码已生成并发送至手机 {}（5 分钟内有效）", maskPhone(phone));
+        // 触达整改：通过短信出口真实发送（默认 LogSmsSender 仅记日志），绝不返回给前端
+        String code = sb.toString();
+        if (smsSender.enabled()) {
+            boolean accepted = smsSender.send(phone, null, "{\"code\":\"" + code + "\"}");
+            if (!accepted) {
+                log.warn("短信发送受理失败: phone={}", maskPhone(phone));
+            }
+        } else {
+            log.info("验证码已生成并发送至手机 {}（5 分钟内有效）", maskPhone(phone));
+        }
 
         // 顺带清理过期项，避免长期运行下内存膨胀
         codeStore.values().removeIf(e -> now - e.createTime > EXPIRE_MS);
