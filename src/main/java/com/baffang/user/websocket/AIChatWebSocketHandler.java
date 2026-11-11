@@ -71,6 +71,9 @@ public class AIChatWebSocketHandler extends TextWebSocketHandler {
     @Autowired
     private AIChatMessageService aiChatMessageService;
 
+    @Autowired
+    private com.baffang.user.service.AiKnowledgeRetrievalService knowledgeRetrievalService;
+
     /**
      * 连接建立时触发
      */
@@ -243,9 +246,18 @@ public class AIChatWebSocketHandler extends TextWebSocketHandler {
                     }
                 }
 
+                // RAG-lite：检索与用户问题相关的论坛帖/平台公告，注入系统提示词
+                // （DeepSeek 无 embedding 接口，采用关键词检索；检索失败返回空串不影响主流程）
+                String basePrompt = "你现在是八方互充平台用户的一名助手，将协助他完成各种任务，如果当前的工具无法满足用户需求，要明确告诉用户无法做到并提出建议,注意：1.应始终以中文回复  2.尽量少涉及系统业务字段，例如经纬度应直接以“经纬度”向用户描述，而非lat和lng   3.每次使用toolcall功能调用tool之前，都务必确保已经说完整个句子，不要遗留几个字符或标点符号  4.需考虑如何使用工具为用户提供更好的服务（例如用户寻找充电桩时，如果你找到了，则可以用getStationInfo工具直接将其展示给用户）  ";
+                String knowledge = knowledgeRetrievalService.retrieve(userMessage, 5);
+                String systemPrompt = knowledge.isEmpty() ? basePrompt
+                        : basePrompt
+                                + "\n\n【平台知识库检索结果】以下是平台论坛帖与公告中可能与本次问题相关的内容，回答相关问题时可参考引用；如与问题无关请忽略，不要编造：\n"
+                                + knowledge;
+
                 // 调用AI流式接口，传递对话历史
                 Flux<String> aiStream = userAiUtil.sendStreamMessageWithHistory(
-                        "你现在是八方互充平台用户的一名助手，将协助他完成各种任务，如果当前的工具无法满足用户需求，要明确告诉用户无法做到并提出建议,注意：1.应始终以中文回复  2.尽量少涉及系统业务字段，例如经纬度应直接以“经纬度”向用户描述，而非lat和lng   3.每次使用toolcall功能调用tool之前，都务必确保已经说完整个句子，不要遗留几个字符或标点符号  4.需考虑如何使用工具为用户提供更好的服务（例如用户寻找充电桩时，如果你找到了，则可以用getStationInfo工具直接将其展示给用户）  ",
+                        systemPrompt,
                         userMessage,
                         chatHistory,
                         toolCallbacks);

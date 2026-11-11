@@ -48,7 +48,22 @@ public class AIDecisionRecord {
     private LocalDateTime handleTime;
     
     private String handleRemark;
-    
+
+    /**
+     * 效果是否已评估：0-未评估，1-已评估（面试叙事整改：决策闭环最后一环）
+     */
+    private Integer effectEvaluated;
+
+    /**
+     * 效果评分（0-100，启发式平台健康度评分）
+     */
+    private java.math.BigDecimal effectScore;
+
+    /**
+     * 效果评估详情（评估时各项平台指标快照）
+     */
+    private String effectDetail;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
     

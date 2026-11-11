@@ -70,4 +70,27 @@ public interface UserPrivateStationReserveMapper {
          */
         com.baffang.common.entity.PrivateStationReserve selectPrivateStationReserveById(
                         @Param("reserveId") Integer reserveId);
+
+        // ==================== 并发控制与超时释放（面试叙事整改） ====================
+
+        /**
+         * 时段冲突检测：同桩、未完结（待确认/已确认）、预约时间相差 <60 分钟的记录数
+         * 防止同一桩同一时段被多名用户重复预约（超卖）
+         */
+        @org.apache.ibatis.annotations.Select(
+                "SELECT COUNT(*) FROM private_station_reserve WHERE charging_station_id = #{stationId} " +
+                "AND status IN (0, 1) AND is_deleted = 0 " +
+                "AND ABS(TIMESTAMPDIFF(MINUTE, reserve_time, #{reserveTime})) < 60")
+        int countTimeConflict(@Param("stationId") Integer stationId,
+                              @Param("reserveTime") java.util.Date reserveTime);
+
+        /**
+         * 超时自动释放：待确认且预约时间已过的记录批量置为已取消
+         *
+         * @return 释放的记录数
+         */
+        @org.apache.ibatis.annotations.Update(
+                "UPDATE private_station_reserve SET status = 2, update_time = NOW() " +
+                "WHERE status = 0 AND is_deleted = 0 AND reserve_time < NOW()")
+        int releaseExpiredReservations();
 }

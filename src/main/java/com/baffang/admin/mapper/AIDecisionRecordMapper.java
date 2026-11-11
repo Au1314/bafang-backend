@@ -85,4 +85,27 @@ public interface AIDecisionRecordMapper {
      * 平均置信度
      */
     Double avgConfidence();
+
+    // ===== 效果评估（面试叙事整改：决策闭环最后一环） =====
+
+    /**
+     * 查询待效果评估的决策（执行完成、超过评估时间窗、未评估）
+     */
+    @org.apache.ibatis.annotations.Select(
+            "SELECT id, decision_no AS decisionNo, decision_type AS decisionType, status, " +
+            "confidence, execute_time AS executeTime, effect_evaluated AS effectEvaluated " +
+            "FROM ai_decision_record WHERE is_deleted = 0 AND status = 5 " +
+            "AND effect_evaluated = 0 AND execute_time IS NOT NULL AND execute_time <= #{cutoff} " +
+            "ORDER BY execute_time ASC LIMIT 50")
+    List<AIDecisionRecord> selectExecutedForEvaluation(@Param("cutoff") java.time.LocalDateTime cutoff);
+
+    /**
+     * 写入效果评估结果
+     */
+    @org.apache.ibatis.annotations.Update(
+            "UPDATE ai_decision_record SET effect_evaluated = 1, effect_score = #{score}, " +
+            "effect_detail = #{detail}, update_time = NOW() WHERE id = #{id}")
+    int updateEffect(@Param("id") Integer id,
+                     @Param("score") java.math.BigDecimal score,
+                     @Param("detail") String detail);
 }

@@ -14,6 +14,7 @@ import com.baffang.user.vo.PrivateStationReserveListVO;
 import com.baffang.user.vo.PrivateStationReserveVO;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +26,7 @@ import java.util.List;
 /**
  * 私桩使用服务实现类
  */
+@Slf4j
 @Service
 public class PrivateStationUseServiceImpl implements PrivateStationUseService {
 
@@ -53,7 +55,21 @@ public class PrivateStationUseServiceImpl implements PrivateStationUseService {
             throw new BusinessException(ErrorMsg.INVALID_TIME_FORMAT);
         }
 
-        // 3. 创建预约记录
+        // 3. 桩可预约状态校验（并发控制整改：此前无任何状态校验）
+        if (privateStation.getAuthStatus() == null || privateStation.getAuthStatus() != 2) {
+            throw new BusinessException("该私桩未通过认证，暂不可预约");
+        }
+        if (privateStation.getOpenStatus() == null || privateStation.getOpenStatus() != 1) {
+            throw new BusinessException("该私桩当前未开放，暂不可预约");
+        }
+
+        // 4. 时段冲突检测（防超卖：同桩 60 分钟窗口内已有未完结预约则拒绝；
+        //    演进项：Redis 分布式锁消除读-写竞态窗口，当前以 DB 冲突计数兜底）
+        if (privateStationReserveMapper.countTimeConflict(stationId, reserveTime) > 0) {
+            throw new BusinessException("该时段已有预约（60 分钟内存在冲突），请选择其他时间");
+        }
+
+        // 5. 创建预约记录
         PrivateStationReserve reserve = new PrivateStationReserve();
         reserve.setUserId(userId);
         reserve.setStationOwnerId(privateStation.getOwnerId());
@@ -67,12 +83,22 @@ public class PrivateStationUseServiceImpl implements PrivateStationUseService {
             throw new BusinessException(ErrorMsg.RESERVE_CREATE_FAILED);
         }
 
-        // 5. 构建返回结果
+        // 6. 构建返回结果
         PrivateStationReserveVO reserveVO = new PrivateStationReserveVO();
         reserveVO.setReserveId(reserve.getId());
         reserveVO.setStatus(reserve.getStatus());
 
         return reserveVO;
+    }
+
+    @Override
+    public int releaseExpiredReservations() {
+        // 超时自动释放：待确认且预约时间已过 → 已取消（防止桩位被僵尸预约长期占用）
+        int released = privateStationReserveMapper.releaseExpiredReservations();
+        if (released > 0) {
+            log.info("超时预约自动释放：{} 条", released);
+        }
+        return released;
     }
 
     @Override

@@ -39,4 +39,11 @@ public interface PrivateStationUseService {
          */
         PageResult<PrivateStationReserveListVO> queryPrivateStationReserveList(Integer userId, Integer status,
                         Integer pageNum, Integer pageSize);
+
+        /**
+         * 超时预约自动释放（并发控制整改：待确认且预约时间已过 → 已取消）
+         *
+         * @return 释放的记录数
+         */
+        int releaseExpiredReservations();
 }

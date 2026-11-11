@@ -3,6 +3,7 @@ package com.baffang.config;
 import com.baffang.common.constant.AIDecisionTriggerType;
 import com.baffang.admin.mapper.AIDecisionRecordMapper;
 import com.baffang.admin.service.AIDecisionService;
+import com.baffang.admin.service.impl.AIDecisionEffectEvaluator;
 import com.baffang.admin.vo.AIDecisionResponseVO;
 import com.baffang.common.entity.AIDecisionRecord;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ public class AIDecisionScheduler {
 
     private final AIDecisionService aiDecisionService;
     private final AIDecisionRecordMapper decisionRecordMapper;
+    private final AIDecisionEffectEvaluator effectEvaluator;
 
     /**
      * 每小时执行异常检测
@@ -60,7 +62,22 @@ public class AIDecisionScheduler {
     }
 
     /**
-     * 每5分钟检查并执行待自动执行的决策
+     * 每天 8:30 评估已执行完成决策的效果（决策闭环最后一环：生成→审核→执行→评估）
+     */
+    @Scheduled(cron = "0 30 8 * * ?")
+    public void scheduledDecisionEffectEvaluation() {
+        try {
+            int evaluated = effectEvaluator.evaluatePendingDecisions();
+            if (evaluated > 0) {
+                log.info("【定时任务】AI 决策效果评估完成，共评估 {} 条", evaluated);
+            }
+        } catch (Exception e) {
+            log.error("【定时任务】AI 决策效果评估执行异常", e);
+        }
+    }
+
+    /**
+     * 每分钟检查并执行待自动执行的决策
      */
     @Scheduled(cron = "0 */5 * * * ?")
     public void scheduledAutoExecuteDecisions() {
